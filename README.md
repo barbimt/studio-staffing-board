@@ -24,4 +24,7 @@ pnpm lint
 pnpm typecheck
 pnpm test:run
 pnpm format:check
+pnpm build
 ```
+
+GitHub Actions runs the same checks on pull requests and on `main`.
