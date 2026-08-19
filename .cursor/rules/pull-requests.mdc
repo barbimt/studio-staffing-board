@@ -1,0 +1,13 @@
+---
+description: Create pull requests with the repo's short Summary + Test plan structure. Use when opening, writing, or updating a PR.
+alwaysApply: false
+---
+
+# Pull requests
+
+When creating a PR, use `gh pr create` and fill `.github/pull_request_template.md`.
+
+- **Title**: short, imperative. Example: `Add month capacity filters`
+- **Summary**: 1–3 bullets of what changed and why. No essay.
+- **Test plan**: a short checklist of how to verify the change.
+- Skip extra sections unless they are needed (breaking change, screenshots, follow-ups).
