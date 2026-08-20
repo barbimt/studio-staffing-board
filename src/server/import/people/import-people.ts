@@ -1,21 +1,43 @@
-import { sql } from "drizzle-orm";
+import { inArray, notInArray, sql } from "drizzle-orm";
 import postgres from "postgres";
 
-import { type AppDatabase } from "../../db/client";
-import { people } from "../../db/schema";
+import { type AppDb } from "../../db/client";
+import { assignments, people } from "../../db/schema";
 import { PeopleImportError, type Person } from "./people.schema";
 
 export async function importPeople(
-  database: AppDatabase,
+  database: AppDb,
   records: Person[],
 ): Promise<{ count: number }> {
-  if (records.length === 0) {
-    return { count: 0 };
-  }
+  const employeeIds = records.map((person) => person.employeeId);
 
   try {
-    await database.transaction(async (tx) => {
-      await tx
+    const stalePeople =
+      employeeIds.length === 0
+        ? await database.select({ id: people.id }).from(people)
+        : await database
+            .select({ id: people.id })
+            .from(people)
+            .where(notInArray(people.employeeId, employeeIds));
+
+    if (stalePeople.length > 0) {
+      const staleIds = stalePeople.map((person) => person.id);
+
+      await database
+        .delete(assignments)
+        .where(inArray(assignments.personId, staleIds));
+      await database.delete(people).where(inArray(people.id, staleIds));
+    }
+
+    if (records.length > 0) {
+      await database
+        .update(people)
+        .set({
+          workEmail: sql`'importing.' || ${people.employeeId} || '@invalid'`,
+        })
+        .where(inArray(people.employeeId, employeeIds));
+
+      await database
         .insert(people)
         .values(records)
         .onConflictDoUpdate({
@@ -33,12 +55,8 @@ export async function importPeople(
             managerEmail: sql`excluded.manager_email`,
           },
         });
-    });
-  } catch (error) {
-    if (error instanceof PeopleImportError) {
-      throw error;
     }
-
+  } catch (error) {
     if (
       error instanceof postgres.PostgresError &&
       error.code === "23505" &&
@@ -49,7 +67,7 @@ export async function importPeople(
       );
     }
 
-    throw new PeopleImportError("People import failed");
+    throw error;
   }
 
   return { count: records.length };

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { and, asc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
 
 import { type AppDatabase } from "../db/client";

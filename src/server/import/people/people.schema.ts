@@ -1,5 +1,13 @@
 import { z } from "zod";
 
+import {
+  optionalDate,
+  optionalEmail,
+  requiredDate,
+  requiredEmail,
+  requiredString,
+} from "../csv-fields";
+
 export class PeopleImportError extends Error {
   readonly messages: string[];
 
@@ -9,49 +17,6 @@ export class PeopleImportError extends Error {
     this.name = "PeopleImportError";
     this.messages = list;
   }
-}
-
-function requiredString(field: string) {
-  return z
-    .string({ error: `${field} is required` })
-    .transform((value) => value.trim())
-    .refine((value) => value.length > 0, { error: `${field} is required` });
-}
-
-function requiredEmail(field: string) {
-  return z
-    .string({ error: `${field} is required` })
-    .transform((value) => value.trim().toLowerCase())
-    .refine((value) => value.length > 0, { error: `${field} is required` })
-    .pipe(z.email({ error: `${field} is invalid` }));
-}
-
-function optionalEmail(field: string) {
-  return z
-    .string({ error: `${field} is invalid` })
-    .transform((value) => {
-      const trimmed = value.trim();
-      return trimmed === "" ? null : trimmed.toLowerCase();
-    })
-    .pipe(z.email({ error: `${field} is invalid` }).nullable());
-}
-
-function requiredDate(field: string) {
-  return z
-    .string({ error: `${field} is required` })
-    .transform((value) => value.trim())
-    .refine((value) => value.length > 0, { error: `${field} is required` })
-    .pipe(z.iso.date({ error: `${field} is invalid` }));
-}
-
-function optionalDate(field: string) {
-  return z
-    .string({ error: `${field} is invalid` })
-    .transform((value) => {
-      const trimmed = value.trim();
-      return trimmed === "" ? null : trimmed;
-    })
-    .pipe(z.iso.date({ error: `${field} is invalid` }).nullable());
 }
 
 const fteSchema = z
@@ -83,8 +48,8 @@ export const peopleCsvRowSchema = z
     Site: requiredString("Site"),
     FTE: fteSchema,
     "Start Date": requiredDate("Start Date"),
-    "End Date": optionalDate("End Date"),
-    "Manager Email": optionalEmail("Manager Email"),
+    "End Date": optionalDate("End Date").optional(),
+    "Manager Email": optionalEmail("Manager Email").optional(),
   })
   .transform((row) => ({
     employeeId: row["Employee ID"],
@@ -96,8 +61,12 @@ export const peopleCsvRowSchema = z
     site: row.Site,
     fte: row.FTE,
     startDate: row["Start Date"],
-    endDate: row["End Date"],
-    managerEmail: row["Manager Email"],
-  }));
+    endDate: row["End Date"] ?? null,
+    managerEmail: row["Manager Email"] ?? null,
+  }))
+  .refine(
+    (person) => person.endDate === null || person.endDate >= person.startDate,
+    { error: "End Date must be on or after Start Date" },
+  );
 
 export type Person = z.infer<typeof peopleCsvRowSchema>;

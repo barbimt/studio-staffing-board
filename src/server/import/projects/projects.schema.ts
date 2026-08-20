@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { requiredDate, requiredString } from "../csv-fields";
+
 export class ProjectsImportError extends Error {
   readonly messages: string[];
 
@@ -9,21 +11,6 @@ export class ProjectsImportError extends Error {
     this.name = "ProjectsImportError";
     this.messages = list;
   }
-}
-
-function requiredString(field: string) {
-  return z
-    .string({ error: `${field} is required` })
-    .transform((value) => value.trim())
-    .refine((value) => value.length > 0, { error: `${field} is required` });
-}
-
-function requiredDate(field: string) {
-  return z
-    .string({ error: `${field} is required` })
-    .transform((value) => value.trim())
-    .refine((value) => value.length > 0, { error: `${field} is required` })
-    .pipe(z.iso.date({ error: `${field} is invalid` }));
 }
 
 export function normalizePersonName(value: string): string {
@@ -52,6 +39,14 @@ export const projectsCsvRowSchema = z
     "Allocation %": z.string({ error: "Allocation % is required" }),
   })
   .transform((row, ctx) => {
+    if (row.End < row.Start) {
+      ctx.addIssue({
+        code: "custom",
+        message: "End must be on or after Start",
+      });
+      return z.NEVER;
+    }
+
     const names = splitList(row.Team);
     const allocations = splitList(row["Allocation %"]);
 

@@ -6,7 +6,7 @@ export default function Loading() {
       <p className="sr-only">Loading monthly staffing</p>
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Studio Capacity
+          Studio Staffing Board
         </h1>
         <p className="text-muted-foreground mt-1">
           Can this person take on more work this month?

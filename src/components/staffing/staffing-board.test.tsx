@@ -1,10 +1,36 @@
 /** @vitest-environment jsdom */
 
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { StaffingBoard } from "@/components/staffing/staffing-board";
 import type { MonthlyPersonCapacity } from "@/server/capacity/calculate-capacity";
+import { peopleRequiredCsvLabels } from "@/lib/validate-import-file";
+
+const refresh = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh }),
+}));
+
+const peopleCsv = `${peopleRequiredCsvLabels.join(",")}\nE001,Alex,Smith,alex@example.com,Studio,Designer,London,1,2020-01-01`;
+const projectsCsv =
+  "Name,Status,Client,Platform,Start,End,Team,Allocation %\nOrchard Grove,Active,Acme,Web,2020-01-01,2020-12-31,Alex,60";
+const calendarIcs = "BEGIN:VCALENDAR\nEND:VCALENDAR";
+
+function csv(name: string, contents: string) {
+  return new File([contents], name, { type: "text/csv" });
+}
+
+function ics(name: string, contents: string) {
+  return new File([contents], name, { type: "text/calendar" });
+}
 
 function person({
   person: personFields,
@@ -35,13 +61,18 @@ function person({
 }
 
 describe("StaffingBoard", () => {
+  beforeEach(() => {
+    refresh.mockReset();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
   it("renders people, role, site, projects, capacity, and status", () => {
     render(
       <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
     );
 
     expect(
-      screen.getByRole("heading", { name: "Studio Capacity" }),
+      screen.getByRole("heading", { name: "Studio Staffing Board" }),
     ).toBeVisible();
     expect(screen.getByText("Alex Turner")).toBeVisible();
     expect(screen.getByText("Lead Developer")).toBeVisible();
@@ -137,20 +168,27 @@ describe("StaffingBoard", () => {
     );
 
     expect(screen.getByText("No staffing data yet")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Import data" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Import data" })).toBeEnabled();
+    expect(screen.getByRole("columnheader", { name: "Person" })).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Site" })).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "Projects" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("columnheader", { name: "Capacity" }),
+    ).toBeVisible();
+    expect(screen.getByRole("columnheader", { name: "Status" })).toBeVisible();
     expect(
       screen.queryByText("No people active in this month"),
     ).not.toBeInTheDocument();
   });
 
-  it("shows an empty month without prompting for import", () => {
+  it("shows an empty month without the first-run prompt", () => {
     render(<StaffingBoard month="2026-09" hasStaffingData people={[]} />);
 
     expect(screen.getByText("No people active in this month")).toBeVisible();
     expect(screen.queryByText("No staffing data yet")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Import data" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import data" })).toBeEnabled();
   });
 
   it("points previous and next month controls at the month query param", () => {
@@ -205,5 +243,147 @@ describe("StaffingBoard", () => {
     fireEvent.keyDown(handle, { key: "Home" });
 
     expect(header).toHaveStyle({ width: "250px" });
+  });
+
+  it("keeps the current board visible while import is pending and after a failed persist", async () => {
+    let resolveImport!: (value: Response) => void;
+    vi.mocked(fetch).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveImport = resolve;
+        }),
+    );
+
+    render(
+      <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Import data" }));
+    await screen.findByLabelText("People — CSV");
+
+    fireEvent.change(screen.getByLabelText("People — CSV"), {
+      target: { files: [csv("people-export.csv", peopleCsv)] },
+    });
+    fireEvent.change(screen.getByLabelText("Projects — CSV"), {
+      target: { files: [csv("projects-export.csv", projectsCsv)] },
+    });
+    fireEvent.change(screen.getByLabelText("Leave calendar — ICS"), {
+      target: { files: [ics("leave-calendar.ics", calendarIcs)] },
+    });
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => {
+      expect(
+        within(dialog).getByRole("button", { name: "Import data" }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Import data" }),
+    );
+
+    expect(
+      await within(dialog).findByRole("button", { name: "Importing…" }),
+    ).toBeDisabled();
+    expect(screen.getByText("Alex Turner")).toBeVisible();
+    expect(screen.getByText("Orchard Grove 60%")).toBeVisible();
+    expect(screen.queryByText("No staffing data yet")).not.toBeInTheDocument();
+    expect(refresh).not.toHaveBeenCalled();
+
+    resolveImport(
+      new Response(
+        JSON.stringify({
+          ok: false,
+          errors: {
+            projects: [
+              'Project "Orchard Grove": team member "Alex Tuner" could not be matched to a canonical person',
+            ],
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    expect(
+      await screen.findByText("We couldn't import the studio data."),
+    ).toBeVisible();
+    expect(screen.getByText(/Alex Tuner/)).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Import studio data" }),
+    ).toBeVisible();
+    expect(screen.getByText("Alex Turner")).toBeVisible();
+    expect(screen.getByText("Orchard Grove 60%")).toBeVisible();
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("refreshes the board only after a successful retry", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            ok: false,
+            errors: {
+              projects: [
+                'Project "Orchard Grove": team member "Alex Tuner" could not be matched to a canonical person',
+              ],
+            },
+          }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+    render(
+      <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Import data" }));
+    await screen.findByLabelText("People — CSV");
+
+    fireEvent.change(screen.getByLabelText("People — CSV"), {
+      target: { files: [csv("people-export.csv", peopleCsv)] },
+    });
+    fireEvent.change(screen.getByLabelText("Projects — CSV"), {
+      target: { files: [csv("projects-broken.csv", projectsCsv)] },
+    });
+    fireEvent.change(screen.getByLabelText("Leave calendar — ICS"), {
+      target: { files: [ics("leave-calendar.ics", calendarIcs)] },
+    });
+
+    const dialog = await screen.findByRole("dialog");
+    await waitFor(() => {
+      expect(
+        within(dialog).getByRole("button", { name: "Import data" }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Import data" }),
+    );
+
+    expect(await screen.findByText(/Alex Tuner/)).toBeVisible();
+    expect(screen.getByText("Alex Turner")).toBeVisible();
+    expect(refresh).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Projects — CSV"), {
+      target: { files: [csv("projects-fixed.csv", projectsCsv)] },
+    });
+    await waitFor(() => {
+      expect(
+        within(dialog).getByRole("button", { name: "Import data" }),
+      ).toBeEnabled();
+    });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Import data" }),
+    );
+
+    await waitFor(() => {
+      expect(refresh).toHaveBeenCalledTimes(1);
+    });
+    expect(
+      screen.queryByRole("heading", { name: "Import studio data" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Alex Turner")).toBeVisible();
   });
 });

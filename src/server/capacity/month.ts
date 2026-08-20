@@ -39,7 +39,7 @@ export function parseYearMonth(month: string): YearMonth {
   };
 }
 
-export function formatYearMonth(year: number, month: number): string {
+function formatYearMonth(year: number, month: number): string {
   return `${year}-${pad2(month)}`;
 }
 

@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseProjectsCsv } from "./parse-projects-csv";
-import {
-  readProjectsFixture,
-  readSourceCsv,
-} from "./projects-csv.test-helpers";
+import { readProjectsFixture } from "./projects-csv.test-helpers";
 
 describe("parseProjectsCsv", () => {
   it("normalizes a valid project row including team and allocation pairing", () => {
@@ -59,6 +56,12 @@ describe("parseProjectsCsv", () => {
     ).toThrow(/Name is duplicated/);
   });
 
+  it("rejects an End before Start", () => {
+    expect(() =>
+      parseProjectsCsv(readProjectsFixture("end-before-start.csv")),
+    ).toThrow(/Row 2: End must be on or after Start/);
+  });
+
   it("treats empty Team and Allocation % as zero assignments", () => {
     expect(
       parseProjectsCsv(readProjectsFixture("empty-assignments.csv")),
@@ -75,15 +78,10 @@ describe("parseProjectsCsv", () => {
     ]);
   });
 
-  it("parses the real projects fixture", () => {
-    const projects = parseProjectsCsv(readSourceCsv("projects-export.csv"));
+  it("parses a multi-person project snapshot", () => {
+    const projects = parseProjectsCsv(readProjectsFixture("valid-project.csv"));
 
-    expect(projects).toHaveLength(9);
-    expect(
-      projects.reduce(
-        (total, project) => total + project.assignments.length,
-        0,
-      ),
-    ).toBe(21);
+    expect(projects).toHaveLength(1);
+    expect(projects[0]?.assignments).toHaveLength(3);
   });
 });

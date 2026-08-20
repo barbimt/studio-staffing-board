@@ -14,15 +14,15 @@
 
 ## Re-import updates existing people on `employee_id`
 
-**Why:** The import must be runnable again without duplicating people. PostgreSQL `ON CONFLICT (employee_id) DO UPDATE` keeps the internal `people.id` stable while refreshing mutable HR fields.
+**Why:** The import must be runnable again without duplicating people. PostgreSQL `ON CONFLICT (employee_id) DO UPDATE` keeps the internal `people.id` stable while refreshing mutable HR fields. Rows missing from the file are deleted first so a remaining person can reuse a departed work email. Remaining people who swap emails are parked on unique temporary addresses, then updated to the snapshot values.
 
 **Trade-off:** A later file can overwrite local HR field values for people it contains. That is the intended source-of-truth behaviour for this import.
 
-## People missing from a later file are not deleted
+## Latest successful import is the canonical current snapshot
 
-**Why:** Absence from an export is not the same as leaving the studio. Employment already has `end_date`. Automatic deletion would invent a product rule we do not need.
+**Why:** The three imported files are treated as complete studio exports, not partial patches. A successful import reconciles Postgres to those sources: insert or update records that are present, and remove records that existed from a previous import but are missing from the latest file. People are identified by `employee_id`, projects by trimmed `Name`, calendar events by UID. Assignments of removed people or projects are deleted first because those foreign keys have no `ON DELETE`. Calendar occurrences cascade when their event is deleted. Recurring events keep the same UID; occurrence rows are reconciled to the latest RRULE.
 
-**Trade-off:** Stale people remain until a later file end-dates them.
+**Trade-off:** Omitting a person, project, or event from the export removes it from the current staffing dataset. That is required so the board cannot keep showing stale rows such as Alex Turner after a people file that no longer lists him.
 
 ## Deterministic full-name matching
 
@@ -38,9 +38,9 @@
 
 ## Project assignment snapshot
 
-**Why:** The project export is the authoritative current snapshot of assignments for imported projects. Existing assignments are updated, new assignments are added, and stale assignments are removed. A project imported with zero assignments deletes every assignment for that project.
+**Why:** The project export is the authoritative current snapshot of every project. Existing projects are upserted by name. Assignments for those projects are inserted, updated, or removed so they match the latest Team and Allocation values. A project imported with zero assignments deletes every assignment for that project. Projects missing from the latest file are removed, along with their assignments.
 
-**Trade-off:** Projects absent from a later file are left unchanged, including their assignments. We do not treat absence as proof that the project no longer exists.
+**Trade-off:** Re-importing a shorter project list deletes omitted projects from the current dataset. There is no archive of dropped projects.
 
 ## Latest import wins
 
@@ -48,11 +48,35 @@
 
 **Trade-off:** Re-importing a project with a different team snapshot replaces the previous assignments for that project.
 
-## Development CSV CLIs are verification-only
+## Studio data is imported in the UI, not from repository files
 
-**Why:** Files in `data/` are fixtures. The Next.js app does not read those paths.
+**Why:** The three source files belong to the studio, not the git repo. A producer imports them through a dialog with three labeled file inputs (People CSV, Projects CSV, Leave calendar ICS). Auto-detecting two CSVs from a multi-file picker is easier to misuse than three explicit slots.
 
-**Trade-off:** Loading the board still needs the CLIs (`pnpm import:people`, `pnpm import:projects`, `pnpm import:calendar`) against a local database.
+**Trade-off:** The application has no bundled staffing snapshot. A fresh database stays empty until someone imports.
+
+## Client checks are UX-only; the importer owns correctness
+
+**Why:** The browser and the route handler share the same shallow checks: all three files are present, look like `.csv` / `.ics`, are not empty, stay under `MAX_IMPORT_FILE_BYTES`, and have the required CSV headers or `BEGIN:VCALENDAR`. Filename, extension, and MIME type are not treated as proof of content. Row, matching, and recurrence rules stay in the parse/match pipeline. Optional people columns (`End Date`, `Manager Email`) may be omitted; missing headers are stored as empty.
+
+**Trade-off:** A CSV with the right headers can still fail after submit. That failure is shown in the same dialog, grouped by source.
+
+## Re-import updates the current snapshot
+
+**Why:** The same dialog is used when data already exists. Copy warns that records missing from the imported files are removed. This is the canonical-snapshot rule, not a history product.
+
+**Trade-off:** There is still no manual allocation override layer.
+
+## One transaction owns People, Projects, and Calendar writes
+
+**Why:** Parse all three files first. Then a single Drizzle `database.transaction` runs `importPeople`, `importProjects`, and `importCalendar`. Matching uses real `people` rows visible in that transaction after people are written. Inner per-importer transactions were removed so the outer transaction is the only boundary.
+
+**Trade-off:** A persist failure rolls back the whole import. Parse/match errors never start the transaction.
+
+## The board refreshes with router.refresh after import
+
+**Why:** `/` already calls `connection()` and reads Postgres on each request, so there is no Full Route Cache to invalidate. The dialog does not copy parsed files into table state. `router.refresh()` runs only after `POST /api/import` returns `{ ok: true }`, which means the import transaction committed. A failed import keeps the dialog open, leaves the current board props unchanged, and does not refresh.
+
+**Trade-off:** Until refresh completes, the user still sees the previous server render. That is the intended source of truth: the last committed snapshot.
 
 ## Calendar leave matches people by work email
 
@@ -62,7 +86,7 @@
 
 ## ICS all-day dates retain exclusive DTEND semantics
 
-**Why:** ICS `VALUE=DATE` `DTEND` is exclusive. `DTSTART:20260921` / `DTEND:20260926` means 21–25 September. Storing the same exclusive end date on `calendar_events` and `calendar_event_occurrences` avoids converting DATE values through timezones.
+**Why:** ICS `VALUE=DATE` `DTEND` is exclusive. `DTSTART:20260921` / `DTEND:20260926` means 21–25 September. node-ical stores that DATE on a `Date` using local calendar components; we format those with `getFullYear` / `getMonth` / `getDate` so we do not convert the DATE through UTC.
 
 **Trade-off:** All-day stored `end_date` is exclusive, the same as ICS. Inclusive last-day math would be off by one.
 
@@ -76,7 +100,7 @@
 
 **Why:** Monthly and person queries should read concrete `calendar_event_occurrences` rows and should not parse RRULE. Non-recurring events produce one range occurrence. Recurring events are expanded with node-ical.
 
-**Trade-off:** Re-import must reconcile stale occurrence rows when a recurrence changes. Events absent from a later file are left unchanged.
+**Trade-off:** Re-import must reconcile stale occurrence rows when a recurrence changes. Events missing from the latest ICS are removed, and their occurrences are removed with them.
 
 ## Unbounded RRULEs fail the import
 
@@ -130,4 +154,4 @@
 
 **Why:** `people.length === 0` can mean nobody is employed in the selected month, or that HR data has never been imported. First-run uses an explicit people-row count; an empty selected month does not prompt for import.
 
-**Trade-off:** The first-run CTA is visible and disabled. Import is the CLI pipeline, not an upload on this page.
+**Trade-off:** The first-run CTA opens the import dialog. An empty selected month still does not prompt as first-run; re-import remains available in the header.

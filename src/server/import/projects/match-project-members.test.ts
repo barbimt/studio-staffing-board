@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { parsePeopleCsv } from "../people/parse-people-csv";
+import { readPeopleFixture } from "../people/people-csv.test-helpers";
 import { matchProjectMembers } from "./match-project-members";
 import { parseProjectsCsv } from "./parse-projects-csv";
-import { readSourceCsv } from "./projects-csv.test-helpers";
+import { readProjectsFixture } from "./projects-csv.test-helpers";
 import type { ImportedProject } from "./projects.schema";
 
 const orchardGrove: ImportedProject = {
@@ -60,23 +61,18 @@ describe("matchProjectMembers", () => {
     );
   });
 
-  it("resolves the real people and projects fixtures", () => {
-    const people = parsePeopleCsv(readSourceCsv("people-export.csv")).map(
+  it("resolves a small people and projects snapshot", () => {
+    const people = parsePeopleCsv(readPeopleFixture("matching-people.csv")).map(
       (person, index) => ({
         id: index + 1,
         firstName: person.firstName,
         lastName: person.lastName,
       }),
     );
-    const projects = parseProjectsCsv(readSourceCsv("projects-export.csv"));
+    const projects = parseProjectsCsv(readProjectsFixture("valid-project.csv"));
     const resolved = matchProjectMembers(projects, people);
 
-    expect(resolved).toHaveLength(9);
-    expect(
-      resolved.reduce(
-        (total, project) => total + project.assignments.length,
-        0,
-      ),
-    ).toBe(21);
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0]?.assignments).toHaveLength(3);
   });
 });
