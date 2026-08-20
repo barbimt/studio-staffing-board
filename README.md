@@ -26,7 +26,7 @@ After schema changes, generate a new SQL migration with `pnpm db:generate`, insp
 
 ## Import people, projects, and calendar
 
-These commands are local verification helpers. They read files from `data/` so we can exercise the import pipeline before the upload UI exists. The application does not depend on those files. Once UI upload lands, these CLIs should be reviewed and removed or replaced.
+These commands are local verification helpers. They read files from `data/`. The Next.js app does not read those paths.
 
 People must be imported first so project team names and calendar leave attendees can resolve to canonical people.
 
@@ -47,7 +47,7 @@ After people and projects are imported, print contractual capacity for a month:
 pnpm capacity 2026-09
 ```
 
-Leave, holidays, and ceremonies are not applied yet. This CLI is a local verification helper; the board at `/` uses the same `getMonthlyCapacity` function.
+This CLI is a local verification helper; the board at `/` uses the same `getMonthlyCapacity` function. Capacity is contractual FTE for the month (`fte × 100`); leave, holidays, and ceremonies are not deducted.
 
 ## Checks
 

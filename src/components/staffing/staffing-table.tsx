@@ -1,32 +1,19 @@
 "use client";
 
 import { useTable, type Header } from "@tanstack/react-table";
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { type KeyboardEvent } from "react";
 
 import {
   staffingColumns,
   staffingTableFeatures,
 } from "@/components/staffing/staffing-columns";
-import {
-  COLUMN_RESIZE_STEP,
-  COLUMN_RESIZE_STEP_LARGE,
-  nextColumnSize,
-  readStaffingColumnSizing,
-  writeStaffingColumnSizing,
-} from "@/components/staffing/staffing-column-sizing";
-import { staffingTableHeaderClassName } from "@/components/staffing/staffing-table-chrome";
-import { StaffingTableFrame } from "@/components/staffing/staffing-table-frame";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { MonthlyPersonCapacity } from "@/server/capacity/calculate-capacity";
 import { formatMonthLabel } from "@/server/capacity/month";
 
-function columnHeaderLabel(
-  header: Header<typeof staffingTableFeatures, MonthlyPersonCapacity, unknown>,
-): string {
-  const { header: headerDef } = header.column.columnDef;
-
-  return typeof headerDef === "string" ? headerDef : header.column.id;
-}
+const COLUMN_RESIZE_STEP = 16;
+const COLUMN_RESIZE_STEP_LARGE = 48;
 
 function ColumnResizeHandle({
   header,
@@ -39,7 +26,10 @@ function ColumnResizeHandle({
     return null;
   }
 
-  const label = columnHeaderLabel(header);
+  const label =
+    typeof header.column.columnDef.header === "string"
+      ? header.column.columnDef.header
+      : header.column.id;
   const minSize = header.column.columnDef.minSize ?? 20;
   const maxSize = header.column.columnDef.maxSize ?? Number.MAX_SAFE_INTEGER;
 
@@ -57,11 +47,9 @@ function ColumnResizeHandle({
     event.preventDefault();
     const step = event.shiftKey ? COLUMN_RESIZE_STEP_LARGE : COLUMN_RESIZE_STEP;
     const delta = event.key === "ArrowRight" ? step : -step;
+    const next = header.column.getSize() + delta;
 
-    onSizeChange(
-      header.column.id,
-      nextColumnSize(header.column.getSize(), delta, minSize, maxSize),
-    );
+    onSizeChange(header.column.id, Math.min(maxSize, Math.max(minSize, next)));
   }
 
   return (
@@ -89,8 +77,6 @@ export function StaffingTable({
   month: string;
   people: MonthlyPersonCapacity[];
 }) {
-  const skipNextPersist = useRef(true);
-  const didRestoreSizing = useRef(false);
   const table = useTable(
     {
       features: staffingTableFeatures,
@@ -105,32 +91,8 @@ export function StaffingTable({
     }),
   );
 
-  useEffect(() => {
-    if (didRestoreSizing.current) {
-      return;
-    }
-
-    didRestoreSizing.current = true;
-    const stored = readStaffingColumnSizing();
-
-    if (Object.keys(stored).length === 0) {
-      return;
-    }
-
-    table.setColumnSizing(stored);
-  }, [table]);
-
-  useEffect(() => {
-    if (skipNextPersist.current) {
-      skipNextPersist.current = false;
-      return;
-    }
-
-    writeStaffingColumnSizing(table.state.columnSizing);
-  }, [table.state.columnSizing]);
-
   return (
-    <StaffingTableFrame>
+    <Card className="mt-8 gap-0 overflow-auto py-0">
       <table
         className="w-full table-fixed border-collapse text-left text-sm"
         style={{ minWidth: table.getTotalSize() }}
@@ -146,10 +108,17 @@ export function StaffingTable({
                 <th
                   key={header.id}
                   scope="col"
-                  className={cn(staffingTableHeaderClassName, "relative")}
-                  style={{ width: header.getSize() }}
+                  className="text-muted-foreground border-border relative border-r p-0 text-xs font-medium tracking-wider uppercase last:border-r-0"
+                  style={{
+                    width: header.getSize(),
+                    maxWidth: header.column.getCanResize()
+                      ? undefined
+                      : header.getSize(),
+                  }}
                 >
-                  <table.FlexRender header={header} />
+                  <div className="px-4 py-3">
+                    <table.FlexRender header={header} />
+                  </div>
                   <ColumnResizeHandle
                     header={header}
                     onSizeChange={(columnId, size) => {
@@ -173,16 +142,25 @@ export function StaffingTable({
               {row.getAllCells().map((cell) => (
                 <td
                   key={cell.id}
-                  className="overflow-hidden px-4 py-3.5"
-                  style={{ width: cell.column.getSize() }}
+                  className="p-0"
+                  style={{
+                    width: cell.column.getSize(),
+                    maxWidth: cell.column.getCanResize()
+                      ? undefined
+                      : cell.column.getSize(),
+                  }}
                 >
-                  <table.FlexRender cell={cell} />
+                  <div className="px-4 py-3.5">
+                    <div className="min-w-0 overflow-hidden">
+                      <table.FlexRender cell={cell} />
+                    </div>
+                  </div>
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
-    </StaffingTableFrame>
+    </Card>
   );
 }
