@@ -26,6 +26,7 @@
 # personal local notes (do not push)
 /docs/
 .cursor/rules/build-log.mdc
+.cursor/rules/commits.mdc
 
 # misc
 .DS_Store
