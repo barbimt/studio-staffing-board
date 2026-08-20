@@ -26,7 +26,7 @@ When the board has no people yet, choose **Import data** and select the three st
 
 Imported data is stored in PostgreSQL. Refreshing the page keeps the board; you do not import again unless the source files have changed.
 
-Capacity is contractual FTE for the month (`fte × 100`); leave, holidays, and ceremonies are not deducted.
+Capacity starts from contractual FTE (`fte × 100`). Effective capacity then subtracts weekday personal leave and public holidays for the person’s site (Bristol uses UK holidays, Porto uses Portugal holidays). Allocation percentages are unchanged.
 
 ## Database
 

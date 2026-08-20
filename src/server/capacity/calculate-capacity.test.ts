@@ -46,36 +46,49 @@ describe("calculateTotalAllocation", () => {
   });
 });
 
+const septemberWorkingDays = 22;
+
+function personCapacity(
+  person: CapacityPerson,
+  projects: Parameters<typeof buildMonthlyPersonCapacity>[1],
+  unavailableWeekdays = 0,
+) {
+  return buildMonthlyPersonCapacity(person, projects, {
+    workingDayCount: septemberWorkingDays,
+    unavailableWeekdays,
+  });
+}
+
 describe("calculateCapacityStatus", () => {
-  it("is available below contractual capacity", () => {
+  it("is available below effective capacity", () => {
     expect(
       calculateCapacityStatus({
-        contractualCapacityPercentage: 100,
-        totalAllocation: 70,
+        effectiveCapacityPercentage: 100,
+        totalAllocationPercentage: 70,
       }),
     ).toBe("available");
   });
 
-  it("is at_capacity on the exact boundary", () => {
+  it("is at_capacity on the exact effective boundary", () => {
     expect(
       calculateCapacityStatus({
-        contractualCapacityPercentage: 80,
-        totalAllocation: 80,
+        effectiveCapacityPercentage: 80,
+        totalAllocationPercentage: 80,
       }),
     ).toBe("at_capacity");
   });
 
-  it("is overcommitted above contractual capacity, including over 100", () => {
+  it("is overcommitted above effective capacity, including over 100", () => {
     expect(
       calculateCapacityStatus({
-        contractualCapacityPercentage: 100,
-        totalAllocation: 110,
+        effectiveCapacityPercentage: 100,
+        totalAllocationPercentage: 110,
       }),
     ).toBe("overcommitted");
     expect(
       calculateCapacityStatus({
-        contractualCapacityPercentage: 60,
-        totalAllocation: 70,
+        effectiveCapacityPercentage: 60,
+        totalAllocationPercentage: 70,
       }),
     ).toBe("overcommitted");
   });
@@ -83,47 +96,95 @@ describe("calculateCapacityStatus", () => {
 
 describe("buildMonthlyPersonCapacity", () => {
   it("keeps a person with no assignments as available", () => {
-    const result = buildMonthlyPersonCapacity(
+    const result = personCapacity(
       { ...priya, fte: 1, firstName: "Ben", lastName: "Fletcher" },
       [],
     );
 
     expect(result.projects).toEqual([]);
     expect(result.contractualCapacityPercentage).toBe(100);
-    expect(result.totalAllocation).toBe(0);
-    expect(result.remainingCapacity).toBe(100);
+    expect(result.effectiveCapacityPercentage).toBe(100);
+    expect(result.totalAllocationPercentage).toBe(0);
+    expect(result.remainingCapacityPercentage).toBe(100);
+    expect(result.unavailableWeekdays).toBe(0);
     expect(result.status).toBe("available");
   });
 
-  it("flags part-time overcommitment", () => {
-    const result = buildMonthlyPersonCapacity(priya, [
+  it("equals contractual capacity when there is no leave or holiday", () => {
+    const result = personCapacity({ ...priya, fte: 0.8 }, [
+      { id: 1, name: "Project A", allocationPercentage: 50 },
+    ]);
+
+    expect(result.effectiveCapacityPercentage).toBe(
+      result.contractualCapacityPercentage,
+    );
+    expect(result.effectiveCapacityPercentage).toBe(80);
+    expect(result.remainingCapacityPercentage).toBe(30);
+  });
+
+  it("flags part-time overcommitment against effective capacity", () => {
+    const result = personCapacity(priya, [
       { id: 1, name: "Project A", allocationPercentage: 40 },
       { id: 2, name: "Project B", allocationPercentage: 30 },
     ]);
 
     expect(result.contractualCapacityPercentage).toBe(60);
-    expect(result.totalAllocation).toBe(70);
-    expect(result.remainingCapacity).toBe(-10);
+    expect(result.effectiveCapacityPercentage).toBe(60);
+    expect(result.totalAllocationPercentage).toBe(70);
+    expect(result.remainingCapacityPercentage).toBe(-10);
     expect(result.status).toBe("overcommitted");
   });
 
-  it("keeps remainingCapacity at 0 when allocation matches 0.8 FTE", () => {
-    const result = buildMonthlyPersonCapacity({ ...priya, fte: 0.8 }, [
+  it("keeps remainingCapacityPercentage at 0 when allocation matches 0.8 FTE", () => {
+    const result = personCapacity({ ...priya, fte: 0.8 }, [
       { id: 1, name: "Project A", allocationPercentage: 80 },
     ]);
 
-    expect(result.remainingCapacity).toBe(0);
+    expect(result.remainingCapacityPercentage).toBe(0);
     expect(result.status).toBe("at_capacity");
   });
 
   it("allows full-time allocation over 100", () => {
-    const result = buildMonthlyPersonCapacity({ ...priya, fte: 1 }, [
+    const result = personCapacity({ ...priya, fte: 1 }, [
       { id: 1, name: "Project A", allocationPercentage: 110 },
     ]);
 
     expect(result.contractualCapacityPercentage).toBe(100);
-    expect(result.totalAllocation).toBe(110);
-    expect(result.remainingCapacity).toBe(-10);
+    expect(result.totalAllocationPercentage).toBe(110);
+    expect(result.remainingCapacityPercentage).toBe(-10);
+    expect(result.status).toBe("overcommitted");
+  });
+
+  it("scales FTE after weekday leave", () => {
+    const result = personCapacity({ ...priya, fte: 0.8, site: "Porto" }, [], 5);
+
+    expect(result.contractualCapacityPercentage).toBe(80);
+    expect(result.unavailableWeekdays).toBe(5);
+    expect(result.effectiveCapacityPercentage).toBe(61.82);
+    expect(result.remainingCapacityPercentage).toBe(61.82);
+    expect(result.status).toBe("available");
+  });
+
+  it("counts overlapping leave and holiday weekdays once", () => {
+    const leaveAndHolidaySameDay = personCapacity({ ...priya, fte: 1 }, [], 1);
+    const leaveOnly = personCapacity({ ...priya, fte: 1 }, [], 1);
+
+    expect(leaveAndHolidaySameDay.effectiveCapacityPercentage).toBe(
+      leaveOnly.effectiveCapacityPercentage,
+    );
+    expect(leaveAndHolidaySameDay.effectiveCapacityPercentage).toBe(95.45);
+  });
+
+  it("compares status to reduced effective capacity, not contractual", () => {
+    const result = personCapacity(
+      { ...priya, fte: 1 },
+      [{ id: 1, name: "Project A", allocationPercentage: 100 }],
+      1,
+    );
+
+    expect(result.contractualCapacityPercentage).toBe(100);
+    expect(result.effectiveCapacityPercentage).toBe(95.45);
+    expect(result.remainingCapacityPercentage).toBe(-4.55);
     expect(result.status).toBe("overcommitted");
   });
 });

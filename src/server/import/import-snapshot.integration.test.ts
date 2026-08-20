@@ -538,4 +538,114 @@ describe.skipIf(!testDatabaseUrl)("import snapshot reconciliation", () => {
       expect.objectContaining({ name: "Boundary", allocationPercentage: 40 }),
     ]);
   });
+
+  it("reduces effective capacity for personal leave and site-matched holidays", async () => {
+    const peopleWithSites = [
+      peopleHeader,
+      "E002,Alex,Turner,alex.turner@example.com,Engineering,Developer,Bristol,1.0,2022-01-01,,",
+      "E003,Maria,Costa,maria.costa@example.com,Engineering,Developer,Porto,0.8,2023-02-01,,",
+      "E099,Sam,Remote,sam.remote@example.com,Engineering,Developer,Remote,1.0,2022-01-01,,",
+    ].join("\n");
+    const noProjects = [projectsHeader].join("\n");
+    const calendar = calendarIcs(
+      [
+        "BEGIN:VEVENT",
+        "UID:hol-uk-weekend@example.com",
+        "SUMMARY:Weekend UK Holiday",
+        "DTSTART;VALUE=DATE:20260905",
+        "DTEND;VALUE=DATE:20260906",
+        "CATEGORIES:HOLIDAY-UK",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+      [
+        "BEGIN:VEVENT",
+        "UID:hol-uk-weekday@example.com",
+        "SUMMARY:UK Holiday",
+        "DTSTART;VALUE=DATE:20260921",
+        "DTEND;VALUE=DATE:20260922",
+        "CATEGORIES:HOLIDAY-UK",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+      [
+        "BEGIN:VEVENT",
+        "UID:hol-pt-weekday@example.com",
+        "SUMMARY:PT Holiday",
+        "DTSTART;VALUE=DATE:20260916",
+        "DTEND;VALUE=DATE:20260917",
+        "CATEGORIES:HOLIDAY-PT",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+      [
+        "BEGIN:VEVENT",
+        "UID:leave-maria@example.com",
+        "SUMMARY:Annual Leave - Maria Costa",
+        "DTSTART;VALUE=DATE:20260921",
+        "DTEND;VALUE=DATE:20260926",
+        "ATTENDEE;CN=Maria Costa:mailto:maria.costa@example.com",
+        "CATEGORIES:LEAVE",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+      [
+        "BEGIN:VEVENT",
+        "UID:leave-sam@example.com",
+        "SUMMARY:Annual Leave - Sam Remote",
+        "DTSTART;VALUE=DATE:20260922",
+        "DTEND;VALUE=DATE:20260924",
+        "ATTENDEE;CN=Sam Remote:mailto:sam.remote@example.com",
+        "CATEGORIES:LEAVE",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+      [
+        "BEGIN:VEVENT",
+        "UID:hol-uk-overlap-maria@example.com",
+        "SUMMARY:PT Holiday on Maria leave",
+        "DTSTART;VALUE=DATE:20260921",
+        "DTEND;VALUE=DATE:20260922",
+        "CATEGORIES:HOLIDAY-PT",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+      [
+        "BEGIN:VEVENT",
+        "UID:offsite@example.com",
+        "SUMMARY:Studio Offsite",
+        "DTSTART;VALUE=DATE:20260916",
+        "DTEND;VALUE=DATE:20260918",
+        "CATEGORIES:CEREMONY",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+    );
+
+    await importStudioData(db, {
+      peopleCsv: peopleWithSites,
+      projectsCsv: noProjects,
+      calendarIcs: calendar,
+    });
+
+    const board = await getMonthlyCapacity(db, "2026-09");
+    const byName = Object.fromEntries(
+      board.map((row) => [
+        `${row.person.firstName} ${row.person.lastName}`,
+        row,
+      ]),
+    );
+
+    expect(byName["Alex Turner"]?.unavailableWeekdays).toBe(1);
+    expect(byName["Alex Turner"]?.contractualCapacityPercentage).toBe(100);
+    expect(byName["Alex Turner"]?.effectiveCapacityPercentage).toBe(95.45);
+
+    expect(byName["Maria Costa"]?.unavailableWeekdays).toBe(6);
+    expect(byName["Maria Costa"]?.contractualCapacityPercentage).toBe(80);
+    expect(byName["Maria Costa"]?.effectiveCapacityPercentage).toBe(58.18);
+
+    expect(byName["Sam Remote"]?.unavailableWeekdays).toBe(2);
+    expect(byName["Sam Remote"]?.contractualCapacityPercentage).toBe(100);
+    expect(byName["Sam Remote"]?.effectiveCapacityPercentage).toBe(90.91);
+  });
 });

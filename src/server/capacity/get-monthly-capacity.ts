@@ -1,21 +1,42 @@
 import "server-only";
 
-import { and, asc, eq, gte, inArray, isNull, lte, or } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  gt,
+  gte,
+  inArray,
+  isNotNull,
+  isNull,
+  lte,
+  or,
+} from "drizzle-orm";
 
 import { type AppDatabase } from "../db/client";
-import { assignments, people, projects } from "../db/schema";
+import {
+  assignments,
+  calendarEventOccurrences,
+  calendarEvents,
+  people,
+  projects,
+} from "../db/schema";
 import {
   buildMonthlyPersonCapacity,
   type CapacityProject,
   type MonthlyPersonCapacity,
 } from "./calculate-capacity";
+import { LEAVE_CATEGORY, regionForSite } from "./holiday-regions";
 import { parseYearMonth } from "./month";
+import { weekdaysInExclusiveRange, workingDaysInMonth } from "./working-days";
 
 export async function getMonthlyCapacity(
   database: AppDatabase,
   month: string,
 ): Promise<MonthlyPersonCapacity[]> {
-  const { monthStart, monthEnd } = parseYearMonth(month);
+  const yearMonth = parseYearMonth(month);
+  const { monthStart, monthEnd } = yearMonth;
+  const workingDays = workingDaysInMonth(yearMonth);
 
   const activePeople = await database
     .select({
@@ -40,25 +61,52 @@ export async function getMonthlyCapacity(
     return [];
   }
 
-  const assignmentRows = await database
-    .select({
-      personId: assignments.personId,
-      projectId: projects.id,
-      projectName: projects.name,
-      allocationPercentage: assignments.allocationPercentage,
-    })
-    .from(assignments)
-    .innerJoin(projects, eq(assignments.projectId, projects.id))
-    .where(
-      and(
-        inArray(
-          assignments.personId,
-          activePeople.map((person) => person.id),
+  const activePersonIds = activePeople.map((person) => person.id);
+
+  const [assignmentRows, occurrenceRows] = await Promise.all([
+    database
+      .select({
+        personId: assignments.personId,
+        projectId: projects.id,
+        projectName: projects.name,
+        allocationPercentage: assignments.allocationPercentage,
+      })
+      .from(assignments)
+      .innerJoin(projects, eq(assignments.projectId, projects.id))
+      .where(
+        and(
+          inArray(assignments.personId, activePersonIds),
+          lte(projects.startDate, monthEnd),
+          gte(projects.endDate, monthStart),
         ),
-        lte(projects.startDate, monthEnd),
-        gte(projects.endDate, monthStart),
       ),
-    );
+    database
+      .select({
+        personId: calendarEvents.personId,
+        category: calendarEvents.category,
+        appliesToRegion: calendarEvents.appliesToRegion,
+        startDate: calendarEventOccurrences.startDate,
+        endDate: calendarEventOccurrences.endDate,
+      })
+      .from(calendarEventOccurrences)
+      .innerJoin(
+        calendarEvents,
+        eq(calendarEventOccurrences.eventId, calendarEvents.id),
+      )
+      .where(
+        and(
+          lte(calendarEventOccurrences.startDate, monthEnd),
+          gt(calendarEventOccurrences.endDate, monthStart),
+          or(
+            and(
+              eq(calendarEvents.category, LEAVE_CATEGORY),
+              inArray(calendarEvents.personId, activePersonIds),
+            ),
+            isNotNull(calendarEvents.appliesToRegion),
+          ),
+        ),
+      ),
+  ]);
 
   const projectsByPersonId = new Map<number, CapacityProject[]>();
 
@@ -76,7 +124,53 @@ export async function getMonthlyCapacity(
     personProjects.sort((left, right) => left.name.localeCompare(right.name));
   }
 
-  return activePeople.map((person) =>
-    buildMonthlyPersonCapacity(person, projectsByPersonId.get(person.id) ?? []),
-  );
+  const leaveByPersonId = new Map<number, Set<string>>();
+  const holidaysByRegion = new Map<string, Set<string>>();
+
+  for (const row of occurrenceRows) {
+    const weekdays = weekdaysInExclusiveRange({
+      startDate: row.startDate,
+      endDate: row.endDate,
+      month: yearMonth,
+    });
+
+    if (row.category === LEAVE_CATEGORY && row.personId != null) {
+      const days = leaveByPersonId.get(row.personId) ?? new Set<string>();
+      for (const day of weekdays) {
+        days.add(day);
+      }
+      leaveByPersonId.set(row.personId, days);
+      continue;
+    }
+
+    if (row.appliesToRegion) {
+      const days =
+        holidaysByRegion.get(row.appliesToRegion) ?? new Set<string>();
+      for (const day of weekdays) {
+        days.add(day);
+      }
+      holidaysByRegion.set(row.appliesToRegion, days);
+    }
+  }
+
+  return activePeople.map((person) => {
+    const unavailable = new Set(leaveByPersonId.get(person.id) ?? []);
+    const region = regionForSite(person.site);
+    const regionalHolidays = region ? holidaysByRegion.get(region) : undefined;
+
+    if (regionalHolidays) {
+      for (const day of regionalHolidays) {
+        unavailable.add(day);
+      }
+    }
+
+    return buildMonthlyPersonCapacity(
+      person,
+      projectsByPersonId.get(person.id) ?? [],
+      {
+        workingDayCount: workingDays.length,
+        unavailableWeekdays: unavailable.size,
+      },
+    );
+  });
 }

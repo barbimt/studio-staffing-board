@@ -11,16 +11,10 @@ export class CalendarImportError extends Error {
   }
 }
 
-const HOLIDAY_REGION_BY_CATEGORY: Record<string, string> = {
-  "HOLIDAY-UK": "UK",
-  "HOLIDAY-PT": "PT",
-};
-
-export const LEAVE_CATEGORY = "LEAVE";
-
-export function regionForCategory(category: string): string | null {
-  return HOLIDAY_REGION_BY_CATEGORY[category] ?? null;
-}
+export {
+  LEAVE_CATEGORY,
+  regionForCategory,
+} from "@/server/capacity/holiday-regions";
 
 export { normalizeEmail } from "../normalize-email";
 

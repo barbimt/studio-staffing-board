@@ -11,7 +11,7 @@ export const staffingColumnDefaults = {
   site: { size: 120, minSize: 80, enableResizing: false },
   projects: { size: 250, minSize: 140, enableResizing: true },
   capacity: { size: 250, minSize: 200, enableResizing: true },
-  status: { size: 160, minSize: 140, enableResizing: false },
+  status: { size: 200, minSize: 180, enableResizing: false },
 } as const;
 
 export const staffingColumnIds = [
