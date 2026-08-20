@@ -46,8 +46,8 @@ describe("StaffingBoard", () => {
     expect(screen.getByText("Alex Turner")).toBeVisible();
     expect(screen.getByText("Lead Developer")).toBeVisible();
     expect(screen.getByText("Bristol")).toBeVisible();
-    expect(screen.getByText("Orchard Grove · 60%")).toBeVisible();
-    expect(screen.getByText("Pebble Rush · 50%")).toBeVisible();
+    expect(screen.getByText("Orchard Grove 60%")).toBeVisible();
+    expect(screen.getByText("Pebble Rush 50%")).toBeVisible();
     expect(screen.getByText("110% allocated")).toBeVisible();
     expect(screen.getByText("100% capacity")).toBeVisible();
     expect(screen.getByText("10% over")).toBeVisible();
@@ -83,6 +83,7 @@ describe("StaffingBoard", () => {
     expect(screen.getByText("70% allocated")).toBeVisible();
     expect(screen.getByText("60% capacity")).toBeVisible();
     expect(screen.getByText("10% over")).toBeVisible();
+    expect(screen.getByText("0.6 FTE")).toBeVisible();
     expect(screen.getByText("Over capacity")).toBeVisible();
   });
 
@@ -107,7 +108,7 @@ describe("StaffingBoard", () => {
 
     expect(screen.getByText("At capacity")).toBeVisible();
     expect(screen.queryByText("Near capacity")).not.toBeInTheDocument();
-    expect(screen.queryByText(/\d+% available/)).not.toBeInTheDocument();
+    expect(screen.getByText("0% available")).toBeVisible();
     expect(screen.queryByText(/\d+% over/)).not.toBeInTheDocument();
   });
 
@@ -166,5 +167,21 @@ describe("StaffingBoard", () => {
       "/?month=2026-10",
     );
     expect(screen.getByText("September 2026")).toBeVisible();
+  });
+
+  it("exposes a resize control for each resizable column", () => {
+    render(
+      <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
+    );
+
+    for (const column of ["Person", "Site", "Projects", "Capacity"]) {
+      expect(
+        screen.getByRole("button", { name: `Resize ${column} column` }),
+      ).toBeVisible();
+    }
+
+    expect(
+      screen.queryByRole("button", { name: "Resize Status column" }),
+    ).not.toBeInTheDocument();
   });
 });
