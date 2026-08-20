@@ -1,10 +1,14 @@
 /** @vitest-environment jsdom */
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { StaffingBoard } from "@/components/staffing/staffing-board";
 import type { MonthlyPersonCapacity } from "@/server/capacity/calculate-capacity";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 
 function person({
   person: personFields,
@@ -137,20 +141,18 @@ describe("StaffingBoard", () => {
     );
 
     expect(screen.getByText("No staffing data yet")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Import data" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Import data" })).toBeEnabled();
     expect(
       screen.queryByText("No people active in this month"),
     ).not.toBeInTheDocument();
   });
 
-  it("shows an empty month without prompting for import", () => {
+  it("shows an empty month without the first-run prompt", () => {
     render(<StaffingBoard month="2026-09" hasStaffingData people={[]} />);
 
     expect(screen.getByText("No people active in this month")).toBeVisible();
     expect(screen.queryByText("No staffing data yet")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Import data" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import data" })).toBeEnabled();
   });
 
   it("points previous and next month controls at the month query param", () => {

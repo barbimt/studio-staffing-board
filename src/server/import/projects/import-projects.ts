@@ -1,12 +1,12 @@
 import { and, inArray, notInArray, sql } from "drizzle-orm";
 
-import { type AppDatabase } from "../../db/client";
+import { type AppDb } from "../../db/client";
 import { assignments, people, projects } from "../../db/schema";
 import { matchProjectMembers } from "./match-project-members";
 import { ProjectsImportError, type ImportedProject } from "./projects.schema";
 
 export async function importProjects(
-  database: AppDatabase,
+  database: AppDb,
   records: ImportedProject[],
 ): Promise<{ projectCount: number; assignmentCount: number }> {
   if (records.length === 0) {
@@ -29,95 +29,93 @@ export async function importProjects(
 
     const resolved = matchProjectMembers(records, peopleRows);
 
-    await database.transaction(async (tx) => {
-      const upsertedProjects = await tx
-        .insert(projects)
-        .values(
-          resolved.map((project) => ({
-            name: project.name,
-            status: project.status,
-            client: project.client,
-            platform: project.platform,
-            startDate: project.startDate,
-            endDate: project.endDate,
-          })),
-        )
+    const upsertedProjects = await database
+      .insert(projects)
+      .values(
+        resolved.map((project) => ({
+          name: project.name,
+          status: project.status,
+          client: project.client,
+          platform: project.platform,
+          startDate: project.startDate,
+          endDate: project.endDate,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: projects.name,
+        set: {
+          status: sql`excluded.status`,
+          client: sql`excluded.client`,
+          platform: sql`excluded.platform`,
+          startDate: sql`excluded.start_date`,
+          endDate: sql`excluded.end_date`,
+        },
+      })
+      .returning({ id: projects.id, name: projects.name });
+
+    const projectIdByName = new Map(
+      upsertedProjects.map((project) => [project.name, project.id]),
+    );
+
+    const snapshotAssignments: {
+      personId: number;
+      projectId: number;
+      allocationPercentage: number;
+    }[] = [];
+    const projectIdsWithAssignments: number[] = [];
+    const projectIdsWithoutAssignments: number[] = [];
+
+    for (const project of resolved) {
+      const projectId = projectIdByName.get(project.name);
+
+      if (projectId === undefined) {
+        throw new ProjectsImportError("Projects import failed");
+      }
+
+      if (project.assignments.length === 0) {
+        projectIdsWithoutAssignments.push(projectId);
+        continue;
+      }
+
+      projectIdsWithAssignments.push(projectId);
+
+      for (const assignment of project.assignments) {
+        snapshotAssignments.push({
+          personId: assignment.personId,
+          projectId,
+          allocationPercentage: assignment.allocationPercentage,
+        });
+      }
+    }
+
+    if (snapshotAssignments.length > 0) {
+      const upsertedAssignments = await database
+        .insert(assignments)
+        .values(snapshotAssignments)
         .onConflictDoUpdate({
-          target: projects.name,
+          target: [assignments.personId, assignments.projectId],
           set: {
-            status: sql`excluded.status`,
-            client: sql`excluded.client`,
-            platform: sql`excluded.platform`,
-            startDate: sql`excluded.start_date`,
-            endDate: sql`excluded.end_date`,
+            allocationPercentage: sql`excluded.allocation_percentage`,
           },
         })
-        .returning({ id: projects.id, name: projects.name });
+        .returning({ id: assignments.id });
 
-      const projectIdByName = new Map(
-        upsertedProjects.map((project) => [project.name, project.id]),
-      );
-
-      const snapshotAssignments: {
-        personId: number;
-        projectId: number;
-        allocationPercentage: number;
-      }[] = [];
-      const projectIdsWithAssignments: number[] = [];
-      const projectIdsWithoutAssignments: number[] = [];
-
-      for (const project of resolved) {
-        const projectId = projectIdByName.get(project.name);
-
-        if (projectId === undefined) {
-          throw new ProjectsImportError("Projects import failed");
-        }
-
-        if (project.assignments.length === 0) {
-          projectIdsWithoutAssignments.push(projectId);
-          continue;
-        }
-
-        projectIdsWithAssignments.push(projectId);
-
-        for (const assignment of project.assignments) {
-          snapshotAssignments.push({
-            personId: assignment.personId,
-            projectId,
-            allocationPercentage: assignment.allocationPercentage,
-          });
-        }
-      }
-
-      if (snapshotAssignments.length > 0) {
-        const upsertedAssignments = await tx
-          .insert(assignments)
-          .values(snapshotAssignments)
-          .onConflictDoUpdate({
-            target: [assignments.personId, assignments.projectId],
-            set: {
-              allocationPercentage: sql`excluded.allocation_percentage`,
-            },
-          })
-          .returning({ id: assignments.id });
-
-        await tx.delete(assignments).where(
-          and(
-            inArray(assignments.projectId, projectIdsWithAssignments),
-            notInArray(
-              assignments.id,
-              upsertedAssignments.map((row) => row.id),
-            ),
+      await database.delete(assignments).where(
+        and(
+          inArray(assignments.projectId, projectIdsWithAssignments),
+          notInArray(
+            assignments.id,
+            upsertedAssignments.map((row) => row.id),
           ),
-        );
-      }
+        ),
+      );
+    }
 
-      if (projectIdsWithoutAssignments.length > 0) {
-        await tx
-          .delete(assignments)
-          .where(inArray(assignments.projectId, projectIdsWithoutAssignments));
-      }
-    });
+    if (projectIdsWithoutAssignments.length > 0) {
+      await database
+        .delete(assignments)
+        .where(inArray(assignments.projectId, projectIdsWithoutAssignments));
+    }
   } catch (error) {
     if (error instanceof ProjectsImportError) {
       throw error;

@@ -1,6 +1,8 @@
+import { ImportDataDialog } from "@/components/staffing/import-data-dialog";
 import { MonthSwitcher } from "@/components/staffing/month-switcher";
 import { StaffingEmptyState } from "@/components/staffing/staffing-empty-state";
 import { StaffingTable } from "@/components/staffing/staffing-table";
+import { Button } from "@/components/ui/button";
 import type { MonthlyPersonCapacity } from "@/server/capacity/calculate-capacity";
 
 export function StaffingBoard({
@@ -21,7 +23,19 @@ export function StaffingBoard({
         <p className="text-muted-foreground mt-1">
           Can this person take on more work this month?
         </p>
-        <MonthSwitcher month={month} />
+        <div className="flex flex-wrap items-center gap-3">
+          <MonthSwitcher month={month} />
+          {hasStaffingData ? (
+            <ImportDataDialog
+              hasStaffingData
+              trigger={
+                <Button variant="ghost" size="sm">
+                  Import data
+                </Button>
+              }
+            />
+          ) : null}
+        </div>
       </header>
       {!hasStaffingData ? (
         <StaffingEmptyState variant="first-run" />

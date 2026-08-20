@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { parsePeopleCsv } from "../people/parse-people-csv";
-import { readCalendarFixture, readSourceFile } from "./calendar-test-helpers";
+import { readPeopleFixture } from "../people/people-csv.test-helpers";
+import { readCalendarFixture } from "./calendar-test-helpers";
 import { matchCalendarPeople } from "./match-calendar-people";
 import { parseCalendar } from "./parse-calendar";
 
@@ -55,19 +56,19 @@ describe("matchCalendarPeople", () => {
     expect(resolved.map((event) => event.personId)).toEqual([null, null, null]);
   });
 
-  it("resolves the real calendar fixture against canonical people emails", () => {
-    const people = parsePeopleCsv(readSourceFile("people-export.csv")).map(
+  it("resolves a small calendar snapshot against canonical people emails", () => {
+    const people = parsePeopleCsv(readPeopleFixture("matching-people.csv")).map(
       (person, index) => ({
         id: index + 1,
         workEmail: person.workEmail,
       }),
     );
-    const events = parseCalendar(readSourceFile("leave-calendar.ics"));
+    const events = parseCalendar(readCalendarFixture("matching-calendar.ics"));
     const resolved = matchCalendarPeople(events, people);
     const leave = resolved.filter((event) => event.category === "LEAVE");
 
-    expect(resolved).toHaveLength(16);
-    expect(leave).toHaveLength(10);
+    expect(resolved).toHaveLength(2);
+    expect(leave).toHaveLength(1);
     expect(leave.every((event) => event.personId !== null)).toBe(true);
     expect(
       resolved

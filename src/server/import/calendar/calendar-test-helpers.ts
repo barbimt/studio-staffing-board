@@ -7,10 +7,3 @@ export function readCalendarFixture(name: string): string {
     "utf8",
   );
 }
-
-export function readSourceFile(name: string): string {
-  return readFileSync(
-    fileURLToPath(new URL(`../../../../data/${name}`, import.meta.url)),
-    "utf8",
-  );
-}

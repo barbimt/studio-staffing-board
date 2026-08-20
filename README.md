@@ -18,30 +18,27 @@ pnpm dev
 
 http://localhost:3000
 
+When the board has no people yet, choose **Import data** and select the three studio files:
+
+- People CSV
+- Projects CSV
+- Leave calendar ICS
+
+Imported data is stored in PostgreSQL. Refreshing the page keeps the board; you do not import again unless the source files have changed.
+
 ## Database
 
 PostgreSQL runs in Docker. After the database is up, apply migrations with `pnpm db:migrate`.
 
 After schema changes, generate a new SQL migration with `pnpm db:generate`, inspect it, then migrate again.
 
-## Import people, projects, and calendar
+## Import again
 
-These commands are local verification helpers. They read files from `data/`. The Next.js app does not read those paths.
-
-People must be imported first so project team names and calendar leave attendees can resolve to canonical people.
-
-```bash
-pnpm db:migrate
-pnpm import:people
-pnpm import:projects
-pnpm import:calendar
-```
-
-Safe to run more than once: existing people are updated by Employee ID, existing projects by name, assignments for imported projects are reconciled to the latest snapshot, and calendar events are upserted by UID with occurrences reconciled to the latest expansion.
+Use **Import data** on a populated board to replace the current snapshot. People are updated by Employee ID, projects by name, assignments for imported projects are reconciled to the latest file, and calendar events are upserted by UID. The latest successful import wins. There is no separate override history.
 
 ## Query monthly capacity
 
-After people and projects are imported, print contractual capacity for a month:
+After data is imported, print contractual capacity for a month:
 
 ```bash
 pnpm capacity 2026-09

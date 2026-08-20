@@ -1,12 +1,12 @@
 import { sql } from "drizzle-orm";
 import postgres from "postgres";
 
-import { type AppDatabase } from "../../db/client";
+import { type AppDb } from "../../db/client";
 import { people } from "../../db/schema";
 import { PeopleImportError, type Person } from "./people.schema";
 
 export async function importPeople(
-  database: AppDatabase,
+  database: AppDb,
   records: Person[],
 ): Promise<{ count: number }> {
   if (records.length === 0) {
@@ -14,26 +14,24 @@ export async function importPeople(
   }
 
   try {
-    await database.transaction(async (tx) => {
-      await tx
-        .insert(people)
-        .values(records)
-        .onConflictDoUpdate({
-          target: people.employeeId,
-          set: {
-            firstName: sql`excluded.first_name`,
-            lastName: sql`excluded.last_name`,
-            workEmail: sql`excluded.work_email`,
-            department: sql`excluded.department`,
-            jobTitle: sql`excluded.job_title`,
-            site: sql`excluded.site`,
-            fte: sql`excluded.fte`,
-            startDate: sql`excluded.start_date`,
-            endDate: sql`excluded.end_date`,
-            managerEmail: sql`excluded.manager_email`,
-          },
-        });
-    });
+    await database
+      .insert(people)
+      .values(records)
+      .onConflictDoUpdate({
+        target: people.employeeId,
+        set: {
+          firstName: sql`excluded.first_name`,
+          lastName: sql`excluded.last_name`,
+          workEmail: sql`excluded.work_email`,
+          department: sql`excluded.department`,
+          jobTitle: sql`excluded.job_title`,
+          site: sql`excluded.site`,
+          fte: sql`excluded.fte`,
+          startDate: sql`excluded.start_date`,
+          endDate: sql`excluded.end_date`,
+          managerEmail: sql`excluded.manager_email`,
+        },
+      });
   } catch (error) {
     if (error instanceof PeopleImportError) {
       throw error;

@@ -48,11 +48,35 @@
 
 **Trade-off:** Re-importing a project with a different team snapshot replaces the previous assignments for that project.
 
-## Development CSV CLIs are verification-only
+## Studio data is imported in the UI, not from repository files
 
-**Why:** Files in `data/` are fixtures. The Next.js app does not read those paths.
+**Why:** The three source files belong to the studio, not the git repo. A producer imports them through a dialog with three labeled file inputs (People CSV, Projects CSV, Leave calendar ICS). Auto-detecting two CSVs from a multi-file picker is easier to misuse than three explicit slots.
 
-**Trade-off:** Loading the board still needs the CLIs (`pnpm import:people`, `pnpm import:projects`, `pnpm import:calendar`) against a local database.
+**Trade-off:** The application has no bundled staffing snapshot. A fresh database stays empty until someone imports.
+
+## Client checks are selection-only; the importer owns correctness
+
+**Why:** The browser only checks that all three files are present, look like `.csv` / `.ics`, are not empty, and stay under `MAX_IMPORT_FILE_BYTES`. Filename, extension, and MIME type are not treated as proof of content. Row, matching, and recurrence rules stay in the existing parse/match pipeline.
+
+**Trade-off:** A CSV with the right extension can still fail after submit. That failure is shown in the same dialog, grouped by source.
+
+## Re-import updates the current snapshot
+
+**Why:** The same dialog is used when data already exists. Copy warns that staffing data and project allocations will be replaced. This is the existing latest-import-wins rule, not a new history product.
+
+**Trade-off:** There is still no manual allocation override layer.
+
+## One transaction owns People, Projects, and Calendar writes
+
+**Why:** Parse all three files first. Then a single Drizzle `database.transaction` runs `importPeople`, `importProjects`, and `importCalendar`. Matching uses real `people` rows visible in that transaction after people are written. Inner per-importer transactions were removed so the outer transaction is the only boundary.
+
+**Trade-off:** A persist failure rolls back the whole import. Parse/match errors never start the transaction.
+
+## The board refreshes with router.refresh after import
+
+**Why:** `/` already calls `connection()` and reads Postgres on each request, so there is no Full Route Cache to invalidate. After `POST /api/import` succeeds, the client calls `router.refresh()` to re-render Server Components from the database. `revalidatePath` is not used.
+
+**Trade-off:** A full browser reload would also show imported data. `router.refresh` avoids a navigation.
 
 ## Calendar leave matches people by work email
 
@@ -130,4 +154,4 @@
 
 **Why:** `people.length === 0` can mean nobody is employed in the selected month, or that HR data has never been imported. First-run uses an explicit people-row count; an empty selected month does not prompt for import.
 
-**Trade-off:** The first-run CTA is visible and disabled. Import is the CLI pipeline, not an upload on this page.
+**Trade-off:** The first-run CTA opens the import dialog. An empty selected month still does not prompt as first-run; re-import remains available in the header.

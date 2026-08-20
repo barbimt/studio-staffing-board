@@ -13,3 +13,7 @@ export function createDb(databaseUrl = process.env.DATABASE_URL) {
 }
 
 export type AppDatabase = ReturnType<typeof createDb>;
+export type AppTransaction = Parameters<
+  Parameters<AppDatabase["transaction"]>[0]
+>[0];
+export type AppDb = AppDatabase | AppTransaction;

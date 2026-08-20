@@ -1,3 +1,4 @@
+import { ImportDataDialog } from "@/components/staffing/import-data-dialog";
 import { Button } from "@/components/ui/button";
 
 export function StaffingEmptyState({
@@ -17,12 +18,15 @@ export function StaffingEmptyState({
     <div className="mt-10 max-w-md">
       <h2 className="text-lg font-medium">No staffing data yet</h2>
       <p className="text-muted-foreground mt-2">
-        Import the studio data files to build the monthly staffing board. File
-        upload is not available in this version.
+        Import the people CSV, projects CSV, and leave calendar to build the
+        monthly staffing board.
       </p>
-      <Button className="mt-4" disabled>
-        Import data
-      </Button>
+      <div className="mt-4">
+        <ImportDataDialog
+          hasStaffingData={false}
+          trigger={<Button>Import data</Button>}
+        />
+      </div>
     </div>
   );
 }

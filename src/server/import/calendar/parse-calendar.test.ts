@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { regionForCategory } from "./calendar.schema";
-import { readCalendarFixture, readSourceFile } from "./calendar-test-helpers";
+import { readCalendarFixture } from "./calendar-test-helpers";
 import { parseCalendar } from "./parse-calendar";
 
 describe("parseCalendar", () => {
@@ -108,12 +108,12 @@ describe("parseCalendar", () => {
     );
   });
 
-  it("parses the real leave calendar fixture", () => {
-    const events = parseCalendar(readSourceFile("leave-calendar.ics"));
+  it("parses a small calendar snapshot with leave and a holiday", () => {
+    const events = parseCalendar(readCalendarFixture("matching-calendar.ics"));
 
-    expect(events).toHaveLength(16);
+    expect(events).toHaveLength(2);
     expect(events.filter((event) => event.category === "LEAVE")).toHaveLength(
-      10,
+      1,
     );
     expect(
       events

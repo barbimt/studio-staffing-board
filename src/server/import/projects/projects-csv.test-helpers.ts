@@ -7,10 +7,3 @@ export function readProjectsFixture(name: string): string {
     "utf8",
   );
 }
-
-export function readSourceCsv(name: string): string {
-  return readFileSync(
-    fileURLToPath(new URL(`../../../../data/${name}`, import.meta.url)),
-    "utf8",
-  );
-}
