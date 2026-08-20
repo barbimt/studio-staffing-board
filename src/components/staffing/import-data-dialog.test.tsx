@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ImportDataDialog } from "@/components/staffing/import-data-dialog";
 import { Button } from "@/components/ui/button";
 import { MAX_IMPORT_FILE_BYTES } from "@/lib/import-limits";
+import { peopleRequiredCsvLabels } from "@/lib/validate-import-file";
 
 const refresh = vi.fn();
 
@@ -19,8 +20,9 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh }),
 }));
 
-const peopleCsv = "Employee ID,First Name\nE001,Alex";
-const projectsCsv = "Name,Team\nOrchard Grove,Alex";
+const peopleCsv = `${peopleRequiredCsvLabels.join(",")}\nE001,Alex,Smith,alex@example.com,Studio,Designer,London,1,2020-01-01`;
+const projectsCsv =
+  "Name,Status,Client,Platform,Start,End,Team,Allocation %\nOrchard Grove,Active,Acme,Web,2020-01-01,2020-12-31,Alex,60";
 const calendarIcs = "BEGIN:VCALENDAR\nEND:VCALENDAR";
 
 function csv(name: string, contents: string) {
@@ -58,6 +60,14 @@ function chooseValidFiles() {
   choose("Leave calendar — ICS", ics("leave-calendar.ics", calendarIcs));
 }
 
+async function chooseValidFilesAndSubmit() {
+  chooseValidFiles();
+  await waitFor(() => {
+    expect(submitButton()).toBeEnabled();
+  });
+  fireEvent.click(submitButton());
+}
+
 describe("ImportDataDialog", () => {
   beforeEach(() => {
     refresh.mockReset();
@@ -71,14 +81,22 @@ describe("ImportDataDialog", () => {
     expect(
       await screen.findByRole("heading", { name: "Import studio data" }),
     ).toBeVisible();
+    expect(
+      screen.queryByText(
+        "People, projects, assignments and calendar events not present in the new files will be removed.",
+      ),
+    ).not.toBeInTheDocument();
     expect(submitButton()).toBeDisabled();
 
     choose("People — CSV", csv("people-export.csv", peopleCsv));
-    expect(screen.getByText("people-export.csv")).toBeVisible();
+    expect(await screen.findByText("people-export.csv")).toBeVisible();
+    expect(await screen.findByText("File looks valid.")).toBeInTheDocument();
     expect(submitButton()).toBeDisabled();
 
     chooseValidFiles();
-    expect(submitButton()).toBeEnabled();
+    await waitFor(() => {
+      expect(submitButton()).toBeEnabled();
+    });
   });
 
   it("shows a field error for the wrong People extension", async () => {
@@ -88,7 +106,7 @@ describe("ImportDataDialog", () => {
 
     choose("People — CSV", csv("employees.xlsx", "rows"));
 
-    expect(screen.getByText("Please select a CSV file.")).toBeVisible();
+    expect(await screen.findByText("Please select a CSV file.")).toBeVisible();
     expect(screen.getByLabelText("People — CSV")).toHaveAccessibleDescription(
       "Please select a CSV file.",
     );
@@ -101,7 +119,7 @@ describe("ImportDataDialog", () => {
 
     choose("Projects — CSV", csv("projects.xlsx", "rows"));
 
-    expect(screen.getByText("Please select a CSV file.")).toBeVisible();
+    expect(await screen.findByText("Please select a CSV file.")).toBeVisible();
   });
 
   it("shows a field error for the wrong Calendar extension", async () => {
@@ -111,7 +129,7 @@ describe("ImportDataDialog", () => {
 
     choose("Leave calendar — ICS", new File(["rows"], "leave.txt"));
 
-    expect(screen.getByText("Please select an ICS file.")).toBeVisible();
+    expect(await screen.findByText("Please select an ICS file.")).toBeVisible();
   });
 
   it("shows a field error for an empty file", async () => {
@@ -123,7 +141,7 @@ describe("ImportDataDialog", () => {
     Object.defineProperty(empty, "size", { value: 0 });
     choose("People — CSV", empty);
 
-    expect(screen.getByText("This file is empty.")).toBeVisible();
+    expect(await screen.findByText("This file is empty.")).toBeVisible();
   });
 
   it("shows a field error for an oversized file", async () => {
@@ -137,7 +155,9 @@ describe("ImportDataDialog", () => {
     });
     choose("People — CSV", oversized);
 
-    expect(screen.getByText("This file is larger than 5 MB.")).toBeVisible();
+    expect(
+      await screen.findByText("This file is larger than 5 MB."),
+    ).toBeVisible();
   });
 
   it("keeps the dialog open and groups server errors by source", async () => {
@@ -162,8 +182,7 @@ describe("ImportDataDialog", () => {
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: "Import data" }));
     await screen.findByLabelText("People — CSV");
-    chooseValidFiles();
-    fireEvent.click(submitButton());
+    await chooseValidFilesAndSubmit();
 
     expect(
       await screen.findByText("We couldn't import the studio data."),
@@ -180,6 +199,55 @@ describe("ImportDataDialog", () => {
     ).toBeVisible();
     expect(screen.getByText(/people-export.csv/)).toBeVisible();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("rejects a projects CSV in the People field before submit", async () => {
+    renderDialog();
+    fireEvent.click(screen.getByRole("button", { name: "Import data" }));
+    await screen.findByLabelText("People — CSV");
+
+    choose("People — CSV", csv("projects-export.csv", projectsCsv));
+
+    expect(
+      await screen.findByText("This people CSV is missing:"),
+    ).toBeVisible();
+    expect(screen.getByText("Employee ID")).toBeVisible();
+    expect(screen.getByText("First Name")).toBeVisible();
+    expect(screen.getByText("Work Email")).toBeVisible();
+    expect(screen.getByText("Start Date")).toBeVisible();
+    expect(screen.queryByText("File looks valid.")).not.toBeInTheDocument();
+    expect(submitButton()).toBeDisabled();
+  });
+
+  it("scrolls long server errors and summarizes extra issues", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ok: false,
+          errors: {
+            projects: Array.from(
+              { length: 12 },
+              (_, index) => `Row ${index + 2}: Name is required`,
+            ),
+          },
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    renderDialog();
+    fireEvent.click(screen.getByRole("button", { name: "Import data" }));
+    await screen.findByLabelText("People — CSV");
+    await chooseValidFilesAndSubmit();
+
+    expect(
+      await screen.findByText("We couldn't import the studio data."),
+    ).toBeVisible();
+    expect(screen.getByText("Row 2: Name is required")).toBeVisible();
+    expect(screen.getByText("and 4 more issues")).toBeVisible();
+    expect(
+      screen.queryByText("Row 12: Name is required"),
+    ).not.toBeInTheDocument();
   });
 
   it("lets the user replace one file and retry after a failure", async () => {
@@ -207,13 +275,15 @@ describe("ImportDataDialog", () => {
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: "Import data" }));
     await screen.findByLabelText("People — CSV");
-    chooseValidFiles();
-    fireEvent.click(submitButton());
+    await chooseValidFilesAndSubmit();
 
     expect(await screen.findByText(/Alex Tuner/)).toBeVisible();
     expect(screen.getByText("people-export.csv")).toBeVisible();
 
     choose("Projects — CSV", csv("projects-fixed.csv", projectsCsv));
+    await waitFor(() => {
+      expect(submitButton()).toBeEnabled();
+    });
     fireEvent.click(submitButton());
 
     await waitFor(() => {
@@ -236,8 +306,7 @@ describe("ImportDataDialog", () => {
     renderDialog();
     fireEvent.click(screen.getByRole("button", { name: "Import data" }));
     await screen.findByLabelText("People — CSV");
-    chooseValidFiles();
-    fireEvent.click(submitButton());
+    await chooseValidFilesAndSubmit();
 
     await waitFor(() => {
       expect(refresh).toHaveBeenCalledTimes(1);
@@ -254,12 +323,7 @@ describe("ImportDataDialog", () => {
 
     expect(
       await screen.findByText(
-        /Importing new studio data will update the current staffing data/,
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        /Project allocations will be replaced by the latest imported values/,
+        "People, projects, assignments and calendar events not present in the new files will be removed.",
       ),
     ).toBeVisible();
   });

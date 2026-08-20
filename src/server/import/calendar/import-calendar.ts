@@ -16,16 +16,17 @@ export async function importCalendar(
   database: AppDb,
   records: ImportedCalendarEvent[],
 ): Promise<{ eventCount: number; occurrenceCount: number }> {
-  if (records.length === 0) {
-    return { eventCount: 0, occurrenceCount: 0 };
-  }
-
   const occurrenceCount = records.reduce(
     (total, event) => total + event.occurrences.length,
     0,
   );
 
   try {
+    if (records.length === 0) {
+      await database.delete(calendarEvents);
+      return { eventCount: 0, occurrenceCount: 0 };
+    }
+
     const peopleRows = await database
       .select({
         id: people.id,
@@ -147,6 +148,12 @@ export async function importCalendar(
           inArray(calendarEventOccurrences.eventId, eventIdsWithoutOccurrences),
         );
     }
+
+    const snapshotUids = resolved.map((event) => event.uid);
+
+    await database
+      .delete(calendarEvents)
+      .where(notInArray(calendarEvents.uid, snapshotUids));
   } catch (error) {
     if (error instanceof CalendarImportError) {
       throw error;

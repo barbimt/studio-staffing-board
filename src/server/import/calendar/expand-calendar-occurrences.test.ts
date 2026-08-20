@@ -73,4 +73,13 @@ describe("expandCalendarOccurrences", () => {
       new Set(event.occurrences.map((occurrence) => occurrence.startDate)).size,
     ).toBe(11);
   });
+
+  it("expands Studio Standup to six Mondays when UNTIL is 7 September", () => {
+    const [event] = parseCalendar(readCalendarFixture("standup-six.ics"));
+
+    expect(event.occurrences).toHaveLength(6);
+    expect(event.occurrences.map((occurrence) => occurrence.startDate)).toEqual(
+      standupMondays.slice(0, 6),
+    );
+  });
 });

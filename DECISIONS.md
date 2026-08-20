@@ -18,11 +18,11 @@
 
 **Trade-off:** A later file can overwrite local HR field values for people it contains. That is the intended source-of-truth behaviour for this import.
 
-## People missing from a later file are not deleted
+## Latest successful import is the canonical current snapshot
 
-**Why:** Absence from an export is not the same as leaving the studio. Employment already has `end_date`. Automatic deletion would invent a product rule we do not need.
+**Why:** The three imported files are treated as complete studio exports, not partial patches. A successful import reconciles Postgres to those sources: insert or update records that are present, and remove records that existed from a previous import but are missing from the latest file. People are identified by `employee_id`, projects by trimmed `Name`, calendar events by UID. Assignments of removed people or projects are deleted first because those foreign keys have no `ON DELETE`. Calendar occurrences cascade when their event is deleted. Recurring events keep the same UID; occurrence rows are reconciled to the latest RRULE.
 
-**Trade-off:** Stale people remain until a later file end-dates them.
+**Trade-off:** Omitting a person, project, or event from the export removes it from the current staffing dataset. That is required so the board cannot keep showing stale rows such as Alex Turner after a people file that no longer lists him.
 
 ## Deterministic full-name matching
 
@@ -38,9 +38,9 @@
 
 ## Project assignment snapshot
 
-**Why:** The project export is the authoritative current snapshot of assignments for imported projects. Existing assignments are updated, new assignments are added, and stale assignments are removed. A project imported with zero assignments deletes every assignment for that project.
+**Why:** The project export is the authoritative current snapshot of every project. Existing projects are upserted by name. Assignments for those projects are inserted, updated, or removed so they match the latest Team and Allocation values. A project imported with zero assignments deletes every assignment for that project. Projects missing from the latest file are removed, along with their assignments.
 
-**Trade-off:** Projects absent from a later file are left unchanged, including their assignments. We do not treat absence as proof that the project no longer exists.
+**Trade-off:** Re-importing a shorter project list deletes omitted projects from the current dataset. There is no archive of dropped projects.
 
 ## Latest import wins
 
@@ -62,7 +62,7 @@
 
 ## Re-import updates the current snapshot
 
-**Why:** The same dialog is used when data already exists. Copy warns that staffing data and project allocations will be replaced. This is the existing latest-import-wins rule, not a new history product.
+**Why:** The same dialog is used when data already exists. Copy warns that records missing from the imported files are removed. This is the canonical-snapshot rule, not a history product.
 
 **Trade-off:** There is still no manual allocation override layer.
 
@@ -74,9 +74,9 @@
 
 ## The board refreshes with router.refresh after import
 
-**Why:** `/` already calls `connection()` and reads Postgres on each request, so there is no Full Route Cache to invalidate. After `POST /api/import` succeeds, the client calls `router.refresh()` to re-render Server Components from the database. `revalidatePath` is not used.
+**Why:** `/` already calls `connection()` and reads Postgres on each request, so there is no Full Route Cache to invalidate. The dialog does not copy parsed files into table state. `router.refresh()` runs only after `POST /api/import` returns `{ ok: true }`, which means the import transaction committed. A failed import keeps the dialog open, leaves the current board props unchanged, and does not refresh.
 
-**Trade-off:** A full browser reload would also show imported data. `router.refresh` avoids a navigation.
+**Trade-off:** Until refresh completes, the user still sees the previous server render. That is the intended source of truth: the last committed snapshot.
 
 ## Calendar leave matches people by work email
 
@@ -100,7 +100,7 @@
 
 **Why:** Monthly and person queries should read concrete `calendar_event_occurrences` rows and should not parse RRULE. Non-recurring events produce one range occurrence. Recurring events are expanded with node-ical.
 
-**Trade-off:** Re-import must reconcile stale occurrence rows when a recurrence changes. Events absent from a later file are left unchanged.
+**Trade-off:** Re-import must reconcile stale occurrence rows when a recurrence changes. Events missing from the latest ICS are removed, and their occurrences are removed with them.
 
 ## Unbounded RRULEs fail the import
 

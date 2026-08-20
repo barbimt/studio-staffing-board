@@ -2,7 +2,11 @@ import {
   hasStudioImportErrors,
   type StudioImportSourceErrors,
 } from "@/lib/import-result";
-import { validateImportFile } from "@/lib/validate-import-file";
+import {
+  importFieldIssueMessages,
+  validateImportContents,
+  validateImportFile,
+} from "@/lib/validate-import-file";
 import { getDb } from "@/server/db";
 import {
   importStudioData,
@@ -45,26 +49,50 @@ export async function POST(request: Request) {
   const calendarError = validateImportFile(calendar, "calendar");
 
   if (peopleError) {
-    errors.people = [peopleError];
+    errors.people = importFieldIssueMessages(peopleError);
   }
 
   if (projectsError) {
-    errors.projects = [projectsError];
+    errors.projects = importFieldIssueMessages(projectsError);
   }
 
   if (calendarError) {
-    errors.calendar = [calendarError];
+    errors.calendar = importFieldIssueMessages(calendarError);
   }
 
   if (hasStudioImportErrors(errors) || !people || !projects || !calendar) {
     return jsonError(errors, 400);
   }
 
+  const peopleCsv = await people.text();
+  const projectsCsv = await projects.text();
+  const calendarIcs = await calendar.text();
+
+  const peopleContentError = validateImportContents(peopleCsv, "people");
+  const projectsContentError = validateImportContents(projectsCsv, "projects");
+  const calendarContentError = validateImportContents(calendarIcs, "calendar");
+
+  if (peopleContentError) {
+    errors.people = importFieldIssueMessages(peopleContentError);
+  }
+
+  if (projectsContentError) {
+    errors.projects = importFieldIssueMessages(projectsContentError);
+  }
+
+  if (calendarContentError) {
+    errors.calendar = importFieldIssueMessages(calendarContentError);
+  }
+
+  if (hasStudioImportErrors(errors)) {
+    return jsonError(errors, 400);
+  }
+
   try {
     await importStudioData(getDb(), {
-      peopleCsv: await people.text(),
-      projectsCsv: await projects.text(),
-      calendarIcs: await calendar.text(),
+      peopleCsv,
+      projectsCsv,
+      calendarIcs,
     });
   } catch (error) {
     if (error instanceof StudioImportError) {

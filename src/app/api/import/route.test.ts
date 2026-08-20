@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST } from "@/app/api/import/route";
 import { MAX_IMPORT_FILE_BYTES } from "@/lib/import-limits";
+import { peopleRequiredCsvLabels } from "@/lib/validate-import-file";
 import { StudioImportError } from "@/server/import/import-studio-data";
 
 vi.mock("@/server/db", () => ({
@@ -20,8 +21,17 @@ vi.mock("@/server/import/import-studio-data", async (importOriginal) => {
 
 import { importStudioData } from "@/server/import/import-studio-data";
 
-function csvFile(name: string, contents = "name\n") {
+function csvFile(
+  name: string,
+  contents = `${peopleRequiredCsvLabels.join(",")}\nE001,Alex,Smith,a@b.com,Studio,Designer,London,1,2020-01-01`,
+) {
   return new File([contents], name, { type: "text/csv" });
+}
+
+function projectsFile(
+  contents = "Name,Status,Client,Platform,Start,End,Team,Allocation %\nOrchard Grove,Active,Acme,Web,2020-01-01,2020-12-31,Alex,60",
+) {
+  return csvFile("projects.csv", contents);
 }
 
 function icsFile(
@@ -87,7 +97,7 @@ describe("POST /api/import", () => {
     const response = await POST(
       requestWith({
         people,
-        projects: csvFile("projects.csv"),
+        projects: projectsFile(),
         calendar: icsFile(),
       }),
     );
@@ -111,7 +121,7 @@ describe("POST /api/import", () => {
     const response = await POST(
       requestWith({
         people: csvFile("people.csv"),
-        projects: csvFile("projects.csv"),
+        projects: projectsFile(),
         calendar: icsFile(),
       }),
     );
@@ -130,7 +140,7 @@ describe("POST /api/import", () => {
     const response = await POST(
       requestWith({
         people: csvFile("people.csv"),
-        projects: csvFile("projects.csv"),
+        projects: projectsFile(),
         calendar: icsFile(),
       }),
     );
@@ -141,14 +151,40 @@ describe("POST /api/import", () => {
     expect(JSON.stringify(payload)).not.toContain("ECONNREFUSED");
   });
 
+  it("rejects swapped people and projects files before parsing rows", async () => {
+    const response = await POST(
+      requestWith({
+        people: csvFile(
+          "people.csv",
+          "Name,Team,Allocation %\nOrchard Grove,Alex,60",
+        ),
+        projects: projectsFile(),
+        calendar: icsFile(),
+      }),
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.errors.people).toEqual([
+      "This people CSV is missing:",
+      ...peopleRequiredCsvLabels,
+    ]);
+    expect(importStudioData).not.toHaveBeenCalled();
+  });
+
   it("imports file text and returns ok", async () => {
     vi.mocked(importStudioData).mockResolvedValue(undefined);
 
+    const peopleCsv = `${peopleRequiredCsvLabels.join(",")}\nE001,Alex,Smith,a@b.com,Studio,Designer,London,1,2020-01-01`;
+    const projectsCsv =
+      "Name,Status,Client,Platform,Start,End,Team,Allocation %\nOrchard Grove,Active,Acme,Web,2020-01-01,2020-12-31,Alex,60";
+    const calendarIcs = "BEGIN:VCALENDAR\nEND:VCALENDAR";
+
     const response = await POST(
       requestWith({
-        people: csvFile("people.csv", "people-csv"),
-        projects: csvFile("projects.csv", "projects-csv"),
-        calendar: icsFile("leave.ics", "calendar-ics"),
+        people: csvFile("people.csv", peopleCsv),
+        projects: csvFile("projects.csv", projectsCsv),
+        calendar: icsFile("leave.ics", calendarIcs),
       }),
     );
     const payload = await response.json();
@@ -158,9 +194,9 @@ describe("POST /api/import", () => {
     expect(importStudioData).toHaveBeenCalledWith(
       {},
       {
-        peopleCsv: "people-csv",
-        projectsCsv: "projects-csv",
-        calendarIcs: "calendar-ics",
+        peopleCsv,
+        projectsCsv,
+        calendarIcs,
       },
     );
   });

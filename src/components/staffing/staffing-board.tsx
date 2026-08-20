@@ -1,3 +1,5 @@
+import { Import } from "lucide-react";
+
 import { ImportDataDialog } from "@/components/staffing/import-data-dialog";
 import { MonthSwitcher } from "@/components/staffing/month-switcher";
 import { StaffingEmptyState } from "@/components/staffing/staffing-empty-state";
@@ -23,13 +25,14 @@ export function StaffingBoard({
         <p className="text-muted-foreground mt-1">
           Can this person take on more work this month?
         </p>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <MonthSwitcher month={month} />
           {hasStaffingData ? (
             <ImportDataDialog
               hasStaffingData
               trigger={
-                <Button variant="ghost" size="sm">
+                <Button variant="outline" size="lg">
+                  <Import aria-hidden="true" data-icon="inline-start" />
                   Import data
                 </Button>
               }
@@ -38,9 +41,9 @@ export function StaffingBoard({
         </div>
       </header>
       {!hasStaffingData ? (
-        <StaffingEmptyState variant="first-run" />
+        <StaffingEmptyState month={month} variant="first-run" />
       ) : people.length === 0 ? (
-        <StaffingEmptyState variant="empty-month" />
+        <StaffingEmptyState month={month} variant="empty-month" />
       ) : (
         <StaffingTable month={month} people={people} />
       )}

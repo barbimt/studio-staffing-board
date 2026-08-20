@@ -9,16 +9,18 @@ export async function importProjects(
   database: AppDb,
   records: ImportedProject[],
 ): Promise<{ projectCount: number; assignmentCount: number }> {
-  if (records.length === 0) {
-    return { projectCount: 0, assignmentCount: 0 };
-  }
-
   const assignmentCount = records.reduce(
     (total, project) => total + project.assignments.length,
     0,
   );
 
   try {
+    if (records.length === 0) {
+      await database.delete(assignments);
+      await database.delete(projects);
+      return { projectCount: 0, assignmentCount: 0 };
+    }
+
     const peopleRows = await database
       .select({
         id: people.id,
@@ -115,6 +117,21 @@ export async function importProjects(
       await database
         .delete(assignments)
         .where(inArray(assignments.projectId, projectIdsWithoutAssignments));
+    }
+
+    const snapshotNames = resolved.map((project) => project.name);
+    const staleProjects = await database
+      .select({ id: projects.id })
+      .from(projects)
+      .where(notInArray(projects.name, snapshotNames));
+
+    if (staleProjects.length > 0) {
+      const staleIds = staleProjects.map((project) => project.id);
+
+      await database
+        .delete(assignments)
+        .where(inArray(assignments.projectId, staleIds));
+      await database.delete(projects).where(inArray(projects.id, staleIds));
     }
   } catch (error) {
     if (error instanceof ProjectsImportError) {
