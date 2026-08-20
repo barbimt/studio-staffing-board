@@ -15,6 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "import:people": "tsx --env-file=.env scripts/import-people.ts",
+    "import:projects": "tsx --env-file=.env scripts/import-projects.ts",
     "prepare": "husky"
   },
   "lint-staged": {
