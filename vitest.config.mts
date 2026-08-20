@@ -10,5 +10,6 @@ export default defineConfig({
   test: {
     passWithNoTests: true,
     fileParallelism: false,
+    setupFiles: ["./src/test/setup.ts"],
   },
 });

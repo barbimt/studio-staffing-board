@@ -107,3 +107,27 @@
 **Why:** The source supplies allocation independently from status (`Active`, `Complete`, `On hold`). Core capacity uses project date overlap only.
 
 **Trade-off:** An On hold or Complete project that overlaps the month still contributes its assignment percentages. Status remains informational until a later product rule says otherwise.
+
+## Selected month lives in the URL
+
+**Why:** The monthly board is a view of one month, not a separate resource. `/?month=YYYY-MM` keeps the selection shareable, refresh-safe, and back/forward friendly without client state.
+
+**Trade-off:** An absent or invalid `month` query defaults to the current UTC month. We do not pick a month from imported fixture dates.
+
+## Server Components load monthly capacity
+
+**Why:** The board is a read of `getMonthlyCapacity`. The page loads data on the server and passes the domain result to presentational components. There is no API route or client fetch for this table.
+
+**Trade-off:** Month changes navigate and re-render the server result. Interactive table behaviour stays in a small Client Component around TanStack Table.
+
+## TanStack Table is headless and core-only
+
+**Why:** Typed column definitions and a reusable table structure now, without shipping sorting, filtering, pagination, or selection before the product needs them.
+
+**Trade-off:** Those features can be registered later on the same table. This phase only renders rows.
+
+## First-run empty is not an empty month
+
+**Why:** `people.length === 0` can mean nobody is employed in the selected month, or that HR data has never been imported. First-run uses an explicit people-row count; an empty selected month does not prompt for import.
+
+**Trade-off:** Import is a later phase. The first-run CTA is visible and disabled so it does not fake an upload.

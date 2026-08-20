@@ -1,7 +1,25 @@
-export default function Home() {
+import { count } from "drizzle-orm";
+
+import { StaffingBoard } from "@/components/staffing/staffing-board";
+import { getMonthlyCapacity } from "@/server/capacity/get-monthly-capacity";
+import { resolveYearMonth } from "@/server/capacity/month";
+import { db, people } from "@/server/db";
+
+export default async function Home({ searchParams }: PageProps<"/">) {
+  const { month: monthParam } = await searchParams;
+  const month = resolveYearMonth(monthParam);
+
+  const [peopleCount] = await db.select({ count: count() }).from(people);
+  const hasStaffingData = Number(peopleCount?.count ?? 0) > 0;
+  const monthlyPeople = hasStaffingData
+    ? await getMonthlyCapacity(db, month)
+    : [];
+
   return (
-    <main className="p-6">
-      <h1>Studio Capacity</h1>
-    </main>
+    <StaffingBoard
+      month={month}
+      hasStaffingData={hasStaffingData}
+      people={monthlyPeople}
+    />
   );
 }

@@ -2,7 +2,7 @@
 
 Internal tool for seeing who has capacity across projects and months.
 
-The app itself is not built yet. This repo is the Next.js + Postgres setup we will build on.
+The home page is the monthly staffing board. Open http://localhost:3000 or a specific month such as http://localhost:3000/?month=2026-09.
 
 ## Run locally
 
@@ -47,7 +47,7 @@ After people and projects are imported, print contractual capacity for a month:
 pnpm capacity 2026-09
 ```
 
-Leave, holidays, and ceremonies are not applied yet. This is a local verification helper, not the staffing board UI.
+Leave, holidays, and ceremonies are not applied yet. This CLI is a local verification helper; the board at `/` uses the same `getMonthlyCapacity` function.
 
 ## Checks
 
