@@ -2,13 +2,13 @@
 
 ## Employee ID is the canonical external identity
 
-**Why:** The HR CSV is the source of person identity. Later project and calendar imports must resolve to one person. Name, row order, and work email alone are too unstable for that.
+**Why:** The HR CSV is the source of person identity. Project and calendar imports resolve to one person. Name, row order, and work email alone are too unstable for that.
 
 **Trade-off:** If HR reissues an Employee ID, a new database person would be created. That is the correct HR semantics; we do not try to merge by name or email.
 
 ## Emails are trimmed and lowercased before persist and duplicate checks
 
-**Why:** Calendar import will match attendee email to the canonical person. Case and surrounding whitespace must not create a second identity.
+**Why:** Calendar import matches attendee email to the canonical person. Case and surrounding whitespace must not create a second identity.
 
 **Trade-off:** The stored value may differ from the source spelling. That is acceptable because email comparison is not case-sensitive.
 
@@ -22,7 +22,7 @@
 
 **Why:** Absence from an export is not the same as leaving the studio. Employment already has `end_date`. Automatic deletion would invent a product rule we do not need.
 
-**Trade-off:** Stale people remain until they are end-dated in a future import or handled by a later process.
+**Trade-off:** Stale people remain until a later file end-dates them.
 
 ## Deterministic full-name matching
 
@@ -34,7 +34,7 @@
 
 **Why:** Current project names are unique in the supplied source. The import key is the trimmed source `Name`, which is also the unique `projects.name` column. We do not case-fold or collapse internal whitespace for project identity, because the database key does not.
 
-**Trade-off:** If the source later introduces a stable project ID, that should replace name-based identity. `Orchard Grove` and `orchard grove` would currently be treated as different projects.
+**Trade-off:** The source has no project ID. `Orchard Grove` and `orchard grove` are different projects.
 
 ## Project assignment snapshot
 
@@ -44,15 +44,15 @@
 
 ## Latest import wins
 
-**Why:** The latest successful project import replaces the current assignment state for imported projects. If UI allocation editing is added later, a subsequent import may overwrite those manual edits.
+**Why:** The latest successful project import replaces the current assignment state for imported projects. There is no separate override layer.
 
-**Trade-off:** The future import UI should warn before replacing current allocation state. That warning is not implemented yet, and we do not track manual overrides.
+**Trade-off:** Re-importing a project with a different team snapshot replaces the previous assignments for that project.
 
 ## Development CSV CLIs are verification-only
 
-**Why:** Production import will be a UI upload. Files in `data/` are fixtures for local verification, not an application data source.
+**Why:** Files in `data/` are fixtures. The Next.js app does not read those paths.
 
-**Trade-off:** `pnpm import:people`, `pnpm import:projects`, and `pnpm import:calendar` exist only to exercise the pipeline locally. They should be reviewed and removed or replaced when the upload flow lands.
+**Trade-off:** Loading the board still needs the CLIs (`pnpm import:people`, `pnpm import:projects`, `pnpm import:calendar`) against a local database.
 
 ## Calendar leave matches people by work email
 
@@ -64,13 +64,13 @@
 
 **Why:** ICS `VALUE=DATE` `DTEND` is exclusive. `DTSTART:20260921` / `DTEND:20260926` means 21–25 September. Storing the same exclusive end date on `calendar_events` and `calendar_event_occurrences` avoids converting DATE values through timezones.
 
-**Trade-off:** Later capacity calculations must treat `end_date` as exclusive for all-day events.
+**Trade-off:** All-day stored `end_date` is exclusive, the same as ICS. Inclusive last-day math would be off by one.
 
 ## Holiday categories map to regions, not studio sites
 
-**Why:** `HOLIDAY-UK` and `HOLIDAY-PT` describe a holiday region. Bristol and Porto may later share a region. The mapping lives in one import-time table: `HOLIDAY-UK` → `UK`, `HOLIDAY-PT` → `PT`. Unknown categories are stored as source text with no inferred person or region.
+**Why:** `HOLIDAY-UK` and `HOLIDAY-PT` describe a holiday region, not a studio site. The mapping lives in one import-time table: `HOLIDAY-UK` → `UK`, `HOLIDAY-PT` → `PT`. Unknown categories are stored as source text with no inferred person or region.
 
-**Trade-off:** Future capacity logic needs an explicit site-to-region mapping. That is not implemented yet.
+**Trade-off:** People are stored with sites such as Bristol and Porto. Monthly capacity does not join those sites to holiday regions.
 
 ## Recurrences are materialised during import
 
@@ -82,13 +82,13 @@
 
 **Why:** An RRULE with neither `UNTIL` nor `COUNT` has no finite snapshot. Materialising it would invent a window.
 
-**Trade-off:** The current source is bounded (`UNTIL=20261012T235900Z`). A later unbounded series must be given an explicit end or count before it can be imported.
+**Trade-off:** The current source is bounded (`UNTIL=20261012T235900Z`). An RRULE without `UNTIL` or `COUNT` cannot be imported.
 
 ## Core monthly capacity is contractual FTE
 
-**Why:** The required question is whether a person can take more work in the selected month. For the core version, `contractualCapacityPercentage = fte × 100`. Leave and public holidays are imported but not applied yet.
+**Why:** The required question is whether a person can take more work in the selected month. `contractualCapacityPercentage = fte × 100`. Leave, holidays, and ceremonies are stored from calendar import and are not part of this calculation.
 
-**Trade-off:** This is not effective, month-adjusted availability. Someone who starts or ends mid-month still receives their full contractual percentage. We do not prorate by working days in this phase.
+**Trade-off:** Someone who starts or ends mid-month still receives their full contractual percentage. We do not prorate by working days.
 
 ## People and projects are active on month overlap
 
@@ -106,4 +106,28 @@
 
 **Why:** The source supplies allocation independently from status (`Active`, `Complete`, `On hold`). Core capacity uses project date overlap only.
 
-**Trade-off:** An On hold or Complete project that overlaps the month still contributes its assignment percentages. Status remains informational until a later product rule says otherwise.
+**Trade-off:** An On hold or Complete project that overlaps the month still contributes its assignment percentages. Status is stored and shown; it does not change the numbers.
+
+## Selected month lives in the URL
+
+**Why:** The monthly board is a view of one month, not a separate resource. `/?month=YYYY-MM` keeps the selection shareable, refresh-safe, and back/forward friendly without client state.
+
+**Trade-off:** An absent or invalid `month` query defaults to the current UTC month. We do not pick a month from imported fixture dates.
+
+## Server Components load monthly capacity
+
+**Why:** The board is a read of `getMonthlyCapacity`. The page loads data on the server and passes the domain result to presentational components. There is no API route or client fetch for this table.
+
+**Trade-off:** Month changes navigate and re-render the server result. Interactive table behaviour stays in a small Client Component around TanStack Table.
+
+## TanStack Table is headless and core-only
+
+**Why:** Typed column definitions and semantic table markup, without sorting, filtering, pagination, or row selection.
+
+**Trade-off:** Column sizing and resizing are registered. Person, Site, and Status are fixed width; Projects and Capacity can be resized.
+
+## First-run empty is not an empty month
+
+**Why:** `people.length === 0` can mean nobody is employed in the selected month, or that HR data has never been imported. First-run uses an explicit people-row count; an empty selected month does not prompt for import.
+
+**Trade-off:** The first-run CTA is visible and disabled. Import is the CLI pipeline, not an upload on this page.

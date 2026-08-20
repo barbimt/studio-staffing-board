@@ -38,3 +38,50 @@ export function parseYearMonth(month: string): YearMonth {
     monthEnd: `${match[1]}-${match[2]}-${pad2(lastDay)}`,
   };
 }
+
+export function formatYearMonth(year: number, month: number): string {
+  return `${year}-${pad2(month)}`;
+}
+
+export function currentYearMonth(now = new Date()): string {
+  return formatYearMonth(now.getUTCFullYear(), now.getUTCMonth() + 1);
+}
+
+export function shiftYearMonth(month: string, delta: number): string {
+  const parsed = parseYearMonth(month);
+  const shifted = new Date(Date.UTC(parsed.year, parsed.month - 1 + delta, 1));
+
+  return formatYearMonth(shifted.getUTCFullYear(), shifted.getUTCMonth() + 1);
+}
+
+export function resolveYearMonth(
+  raw: string | string[] | undefined,
+  now = new Date(),
+): string {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+
+  if (!value) {
+    return currentYearMonth(now);
+  }
+
+  try {
+    parseYearMonth(value);
+    return value;
+  } catch {
+    return currentYearMonth(now);
+  }
+}
+
+export function formatMonthLabel(month: string): string {
+  const { year, month: monthNumber } = parseYearMonth(month);
+
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(year, monthNumber - 1, 1)));
+}
+
+export function staffingMonthHref(month: string): string {
+  return `/?month=${month}`;
+}
