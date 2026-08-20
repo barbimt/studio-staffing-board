@@ -44,4 +44,6 @@ pnpm format:check
 pnpm build
 ```
 
+`pnpm test:run` includes a people-import integration test when `DATABASE_URL` is set (local Docker). Tests use small CSV fixtures under `src/server/import/people/fixtures/`, not `data/`. CI does not set `DATABASE_URL`, so it only runs the parse tests.
+
 GitHub Actions runs the same checks on pull requests and on `main`.
