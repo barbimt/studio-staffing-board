@@ -39,6 +39,16 @@ pnpm import:calendar
 
 Safe to run more than once: existing people are updated by Employee ID, existing projects by name, assignments for imported projects are reconciled to the latest snapshot, and calendar events are upserted by UID with occurrences reconciled to the latest expansion.
 
+## Query monthly capacity
+
+After people and projects are imported, print contractual capacity for a month:
+
+```bash
+pnpm capacity 2026-09
+```
+
+Leave, holidays, and ceremonies are not applied yet. This is a local verification helper, not the staffing board UI.
+
 ## Checks
 
 ```bash
