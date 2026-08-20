@@ -14,7 +14,7 @@
     "test:run": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "capacity": "tsx --env-file=.env scripts/monthly-capacity.ts",
+    "db:reset": "tsx --env-file=.env scripts/reset-database.ts",
     "prepare": "husky"
   },
   "lint-staged": {
