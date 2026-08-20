@@ -9,5 +9,6 @@ export default defineConfig({
   },
   test: {
     passWithNoTests: true,
+    fileParallelism: false,
   },
 });

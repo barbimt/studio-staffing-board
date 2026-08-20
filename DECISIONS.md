@@ -23,3 +23,33 @@
 **Why:** Absence from an export is not the same as leaving the studio. Employment already has `end_date`. Automatic deletion would invent a product rule we do not need.
 
 **Trade-off:** Stale people remain until they are end-dated in a future import or handled by a later process.
+
+## Deterministic full-name matching
+
+**Why:** Projects identify people only by full name. Matching trims, collapses repeated whitespace, and compares case-insensitively. There is no fuzzy matching, first-name-only matching, or nearest-name guessing.
+
+**Trade-off:** A typo such as `Alex Tuner` fails the import instead of being guessed as `Alex Turner`. That is intentional: incorrect staffing data is worse than a failed import.
+
+## Project name as import identity
+
+**Why:** Current project names are unique in the supplied source. The import key is the trimmed source `Name`, which is also the unique `projects.name` column. We do not case-fold or collapse internal whitespace for project identity, because the database key does not.
+
+**Trade-off:** If the source later introduces a stable project ID, that should replace name-based identity. `Orchard Grove` and `orchard grove` would currently be treated as different projects.
+
+## Project assignment snapshot
+
+**Why:** The project export is the authoritative current snapshot of assignments for imported projects. Existing assignments are updated, new assignments are added, and stale assignments are removed. A project imported with zero assignments deletes every assignment for that project.
+
+**Trade-off:** Projects absent from a later file are left unchanged, including their assignments. We do not treat absence as proof that the project no longer exists.
+
+## Latest import wins
+
+**Why:** The latest successful project import replaces the current assignment state for imported projects. If UI allocation editing is added later, a subsequent import may overwrite those manual edits.
+
+**Trade-off:** The future import UI should warn before replacing current allocation state. That warning is not implemented yet, and we do not track manual overrides.
+
+## Development CSV CLIs are verification-only
+
+**Why:** Production import will be a UI upload. Files in `data/` are fixtures for local verification, not an application data source.
+
+**Trade-off:** `pnpm import:people` and `pnpm import:projects` exist only to exercise the pipeline locally. They should be reviewed and removed or replaced when the upload flow lands.

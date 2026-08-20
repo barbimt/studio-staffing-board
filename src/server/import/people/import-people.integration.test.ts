@@ -5,7 +5,7 @@ import { count, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createDb, type AppDatabase } from "../../db/client";
-import { people } from "../../db/schema";
+import { assignments, people, projects } from "../../db/schema";
 import { importPeople } from "./import-people";
 import { parsePeopleCsv } from "./parse-people-csv";
 import { readPeopleFixture } from "./people-csv.test-helpers";
@@ -57,6 +57,8 @@ describe.skipIf(!process.env.DATABASE_URL)("importPeople", () => {
 
   beforeAll(async () => {
     db = createDb();
+    await db.delete(assignments);
+    await db.delete(projects);
     await db.delete(people);
   });
 
