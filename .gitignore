@@ -23,6 +23,10 @@
 # editor
 .vscode/
 
+# personal local notes (do not push)
+/docs/
+.cursor/rules/build-log.mdc
+
 # misc
 .DS_Store
 *.pem

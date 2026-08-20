@@ -24,6 +24,16 @@ PostgreSQL runs in Docker. After the database is up, apply migrations with `pnpm
 
 After schema changes, generate a new SQL migration with `pnpm db:generate`, inspect it, then migrate again.
 
+## Import people
+
+With Postgres running and migrations applied:
+
+```bash
+pnpm import:people
+```
+
+Loads `data/people-export.csv` into Postgres. Safe to run more than once: existing people are updated by Employee ID, not duplicated. People missing from the file are left unchanged.
+
 ## Checks
 
 ```bash
