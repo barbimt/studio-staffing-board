@@ -52,4 +52,34 @@
 
 **Why:** Production import will be a UI upload. Files in `data/` are fixtures for local verification, not an application data source.
 
-**Trade-off:** `pnpm import:people` and `pnpm import:projects` exist only to exercise the pipeline locally. They should be reviewed and removed or replaced when the upload flow lands.
+**Trade-off:** `pnpm import:people`, `pnpm import:projects`, and `pnpm import:calendar` exist only to exercise the pipeline locally. They should be reviewed and removed or replaced when the upload flow lands.
+
+## Calendar leave matches people by work email
+
+**Why:** Email is the stable identifier shared by the HR export and person-specific leave attendees. Matching uses the same trim + lowercase normalisation as stored `people.work_email`. Names are not used.
+
+**Trade-off:** Unmatched leave fails the whole import rather than creating people or storing unassigned leave. Incorrect availability is worse than a failed import.
+
+## ICS all-day dates retain exclusive DTEND semantics
+
+**Why:** ICS `VALUE=DATE` `DTEND` is exclusive. `DTSTART:20260921` / `DTEND:20260926` means 21–25 September. Storing the same exclusive end date on `calendar_events` and `calendar_event_occurrences` avoids converting DATE values through timezones.
+
+**Trade-off:** Later capacity calculations must treat `end_date` as exclusive for all-day events.
+
+## Holiday categories map to regions, not studio sites
+
+**Why:** `HOLIDAY-UK` and `HOLIDAY-PT` describe a holiday region. Bristol and Porto may later share a region. The mapping lives in one import-time table: `HOLIDAY-UK` → `UK`, `HOLIDAY-PT` → `PT`. Unknown categories are stored as source text with no inferred person or region.
+
+**Trade-off:** Future capacity logic needs an explicit site-to-region mapping. That is not implemented yet.
+
+## Recurrences are materialised during import
+
+**Why:** Monthly and person queries should read concrete `calendar_event_occurrences` rows and should not parse RRULE. Non-recurring events produce one range occurrence. Recurring events are expanded with node-ical.
+
+**Trade-off:** Re-import must reconcile stale occurrence rows when a recurrence changes. Events absent from a later file are left unchanged.
+
+## Unbounded RRULEs fail the import
+
+**Why:** An RRULE with neither `UNTIL` nor `COUNT` has no finite snapshot. Materialising it would invent a window.
+
+**Trade-off:** The current source is bounded (`UNTIL=20261012T235900Z`). A later unbounded series must be given an explicit end or count before it can be imported.
