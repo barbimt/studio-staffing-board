@@ -17,6 +17,7 @@
     "import:people": "tsx --env-file=.env scripts/import-people.ts",
     "import:projects": "tsx --env-file=.env scripts/import-projects.ts",
     "import:calendar": "tsx --env-file=.env scripts/import-calendar.ts",
+    "capacity": "tsx --env-file=.env scripts/monthly-capacity.ts",
     "prepare": "husky"
   },
   "lint-staged": {

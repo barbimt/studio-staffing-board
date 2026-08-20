@@ -83,3 +83,27 @@
 **Why:** An RRULE with neither `UNTIL` nor `COUNT` has no finite snapshot. Materialising it would invent a window.
 
 **Trade-off:** The current source is bounded (`UNTIL=20261012T235900Z`). A later unbounded series must be given an explicit end or count before it can be imported.
+
+## Core monthly capacity is contractual FTE
+
+**Why:** The required question is whether a person can take more work in the selected month. For the core version, `contractualCapacityPercentage = fte × 100`. Leave and public holidays are imported but not applied yet.
+
+**Trade-off:** This is not effective, month-adjusted availability. Someone who starts or ends mid-month still receives their full contractual percentage. We do not prorate by working days in this phase.
+
+## People and projects are active on month overlap
+
+**Why:** A person or project contributes when their date range overlaps the selected month, including start or end during the month and dates that fall on the month boundaries.
+
+**Trade-off:** Overlap is inclusive on stored `YYYY-MM-DD` values. We do not require the person or project to cover the whole month.
+
+## Assignments follow the project date range
+
+**Why:** Assignments have no start or end of their own. An assignment contributes for every month its project overlaps.
+
+**Trade-off:** We cannot represent a person joining or leaving a still-running project at a different date than the project itself.
+
+## Project status does not change allocation
+
+**Why:** The source supplies allocation independently from status (`Active`, `Complete`, `On hold`). Core capacity uses project date overlap only.
+
+**Trade-off:** An On hold or Complete project that overlaps the month still contributes its assignment percentages. Status remains informational until a later product rule says otherwise.
