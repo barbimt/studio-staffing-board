@@ -8,13 +8,13 @@ The Studio Staffing Board is a shared monthly view of who can take on more work.
 
 Use the arrows at the top of the board to choose a month. For that month you’ll see each person who is employed then, together with the projects they are allocated to.
 
-🎯 Capacity is based on contractual FTE. Full-time is 100% capacity; part-time is scaled the same way — for example, 0.6 FTE is 60% capacity. Project allocations for the month are added up and shown against that number, so you can see total allocation versus working capacity at a glance.
+🎯 Capacity starts from contractual FTE. Full-time is 100%; part-time is scaled the same way — for example, 0.6 FTE is 60%. Leave and public holidays for that person’s studio then reduce effective capacity for the month. Project allocations are added up and shown against effective capacity, so you can see total allocation versus working capacity at a glance.
 
 Each person is labelled clearly:
 
 - **Available** — room for more work
 - **At capacity** — fully allocated
-- **Over capacity** — allocated above their FTE
+- **Over capacity** — allocated above their effective capacity
 
 ## 📂 Keeping the board up to date
 
@@ -24,4 +24,4 @@ If an import does not go through, the last valid staffing picture stays exactly 
 
 ## ⚠️ A couple of things to know
 
-Leave and public holidays are imported with the rest of the studio data, but they do not yet reduce someone’s available capacity. For now, FTE is the number we use for working capacity — time off is stored, not applied to the calculation.
+Public holidays only reduce capacity for people at the matching studio: Bristol uses UK holidays, Porto uses Portugal holidays. Ceremonies are shown in the calendar import but do not change the numbers.

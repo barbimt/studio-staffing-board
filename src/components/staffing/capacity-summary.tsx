@@ -1,3 +1,5 @@
+import { CalendarOff } from "lucide-react";
+
 import { CAPACITY_STATUS_APPEARANCE } from "@/components/staffing/capacity-appearance";
 import {
   Progress,
@@ -8,24 +10,32 @@ import { cn } from "@/lib/utils";
 import type { MonthlyPersonCapacity } from "@/server/capacity/calculate-capacity";
 
 export function CapacitySummary({
-  totalAllocation,
-  contractualCapacityPercentage,
-  remainingCapacity,
+  totalAllocationPercentage,
+  effectiveCapacityPercentage,
+  unavailableWeekdays,
   status,
 }: Pick<
   MonthlyPersonCapacity,
-  | "totalAllocation"
-  | "contractualCapacityPercentage"
-  | "remainingCapacity"
+  | "totalAllocationPercentage"
+  | "effectiveCapacityPercentage"
+  | "unavailableWeekdays"
   | "status"
 >) {
-  const { accentClass, textClass, remainingLabel } =
-    CAPACITY_STATUS_APPEARANCE[status];
-  const remaining = remainingLabel(remainingCapacity);
-  const scale = Math.max(totalAllocation, contractualCapacityPercentage, 1);
-  const fillPercent = (totalAllocation / scale) * 100;
-  const capacityMarkPercent = (contractualCapacityPercentage / scale) * 100;
-  const showCapacityMark = totalAllocation > contractualCapacityPercentage;
+  const { accentClass, textClass } = CAPACITY_STATUS_APPEARANCE[status];
+  const scale = Math.max(
+    totalAllocationPercentage,
+    effectiveCapacityPercentage,
+    1,
+  );
+  const fillPercent = (totalAllocationPercentage / scale) * 100;
+  const capacityMarkPercent = (effectiveCapacityPercentage / scale) * 100;
+  const showCapacityMark =
+    totalAllocationPercentage > effectiveCapacityPercentage;
+  const showReduction = unavailableWeekdays > 0;
+  const unavailableLabel =
+    unavailableWeekdays === 1
+      ? "1 day unavailable"
+      : `${unavailableWeekdays} days unavailable`;
 
   return (
     <div className="flex min-w-0 flex-col gap-1">
@@ -36,10 +46,10 @@ export function CapacitySummary({
             status === "overcommitted" && textClass,
           )}
         >
-          {totalAllocation}% allocated
+          {totalAllocationPercentage}% allocated
         </span>
         <span className="text-muted-foreground text-xs">
-          {contractualCapacityPercentage}% capacity
+          {effectiveCapacityPercentage}% capacity
         </span>
       </div>
       <Progress value={fillPercent} aria-hidden="true" className="w-full gap-0">
@@ -53,8 +63,11 @@ export function CapacitySummary({
           ) : null}
         </ProgressTrack>
       </Progress>
-      {remaining ? (
-        <span className={cn("text-xs", textClass)}>{remaining}</span>
+      {showReduction ? (
+        <span className="text-muted-foreground flex items-center gap-1 text-xs">
+          <CalendarOff className="size-3 shrink-0" aria-hidden="true" />
+          {unavailableLabel}
+        </span>
       ) : null}
     </div>
   );

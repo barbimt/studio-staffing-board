@@ -75,11 +75,9 @@ export const staffingColumns = columnHelper.columns([
     ...staffingColumnDefaults.capacity,
     cell: ({ row }) => (
       <CapacitySummary
-        totalAllocation={row.original.totalAllocation}
-        contractualCapacityPercentage={
-          row.original.contractualCapacityPercentage
-        }
-        remainingCapacity={row.original.remainingCapacity}
+        totalAllocationPercentage={row.original.totalAllocationPercentage}
+        effectiveCapacityPercentage={row.original.effectiveCapacityPercentage}
+        unavailableWeekdays={row.original.unavailableWeekdays}
         status={row.original.status}
       />
     ),
@@ -87,9 +85,9 @@ export const staffingColumns = columnHelper.columns([
   columnHelper.accessor("status", {
     header: staffingColumnHeader.status,
     ...staffingColumnDefaults.status,
-    cell: ({ getValue }) => {
-      const status = getValue();
-      const { label, badgeClass, accentClass } =
+    cell: ({ row }) => {
+      const { status, remainingCapacityPercentage } = row.original;
+      const { statusLabel, badgeClass, accentClass } =
         CAPACITY_STATUS_APPEARANCE[status];
 
       return (
@@ -98,7 +96,7 @@ export const staffingColumns = columnHelper.columns([
             className={cn("size-1.5 shrink-0 rounded-full", accentClass)}
             aria-hidden="true"
           />
-          {label}
+          {statusLabel(remainingCapacityPercentage)}
         </Badge>
       );
     },

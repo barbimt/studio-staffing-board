@@ -53,8 +53,10 @@ function person({
       { id: 11, name: "Pebble Rush", allocationPercentage: 50 },
     ],
     contractualCapacityPercentage: 100,
-    totalAllocation: 110,
-    remainingCapacity: -10,
+    effectiveCapacityPercentage: 100,
+    totalAllocationPercentage: 110,
+    remainingCapacityPercentage: -10,
+    unavailableWeekdays: 0,
     status: "overcommitted",
     ...rest,
   };
@@ -81,8 +83,33 @@ describe("StaffingBoard", () => {
     expect(screen.getByText("Pebble Rush 50%")).toBeVisible();
     expect(screen.getByText("110% allocated")).toBeVisible();
     expect(screen.getByText("100% capacity")).toBeVisible();
-    expect(screen.getByText("10% over")).toBeVisible();
-    expect(screen.getByText("Over capacity")).toBeVisible();
+    expect(screen.getByText("10% over capacity")).toBeVisible();
+    expect(screen.queryByText(/contractual/)).not.toBeInTheDocument();
+  });
+
+  it("shows unavailable days only when capacity was reduced", () => {
+    render(
+      <StaffingBoard
+        month="2026-09"
+        hasStaffingData
+        people={[
+          person({
+            contractualCapacityPercentage: 80,
+            effectiveCapacityPercentage: 61.82,
+            totalAllocationPercentage: 50,
+            remainingCapacityPercentage: 11.82,
+            unavailableWeekdays: 5,
+            status: "available",
+          }),
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("50% allocated")).toBeVisible();
+    expect(screen.getByText("61.82% capacity")).toBeVisible();
+    expect(screen.getByText("5 days unavailable")).toBeVisible();
+    expect(screen.queryByText(/contractual/)).not.toBeInTheDocument();
+    expect(screen.getByText("11.82% available")).toBeVisible();
   });
 
   it("shows remaining over-capacity from provided domain values", () => {
@@ -93,8 +120,10 @@ describe("StaffingBoard", () => {
         people={[
           person({
             contractualCapacityPercentage: 60,
-            totalAllocation: 70,
-            remainingCapacity: -10,
+            effectiveCapacityPercentage: 60,
+            totalAllocationPercentage: 70,
+            remainingCapacityPercentage: -10,
+            unavailableWeekdays: 0,
             status: "overcommitted",
             projects: [{ id: 20, name: "Lantern", allocationPercentage: 70 }],
             person: {
@@ -113,8 +142,7 @@ describe("StaffingBoard", () => {
 
     expect(screen.getByText("70% allocated")).toBeVisible();
     expect(screen.getByText("60% capacity")).toBeVisible();
-    expect(screen.getByText("10% over")).toBeVisible();
-    expect(screen.getByText("Over capacity")).toBeVisible();
+    expect(screen.getByText("10% over capacity")).toBeVisible();
   });
 
   it("renders At capacity, not Near capacity", () => {
@@ -124,9 +152,11 @@ describe("StaffingBoard", () => {
         hasStaffingData
         people={[
           person({
-            totalAllocation: 80,
+            totalAllocationPercentage: 80,
             contractualCapacityPercentage: 80,
-            remainingCapacity: 0,
+            effectiveCapacityPercentage: 80,
+            remainingCapacityPercentage: 0,
+            unavailableWeekdays: 0,
             status: "at_capacity",
             projects: [
               { id: 30, name: "Orchard Grove", allocationPercentage: 80 },
@@ -150,8 +180,8 @@ describe("StaffingBoard", () => {
         people={[
           person({
             projects: [],
-            totalAllocation: 0,
-            remainingCapacity: 100,
+            totalAllocationPercentage: 0,
+            remainingCapacityPercentage: 100,
             status: "available",
           }),
         ]}
@@ -159,7 +189,7 @@ describe("StaffingBoard", () => {
     );
 
     expect(screen.getByText("No projects")).toBeVisible();
-    expect(screen.getByText("Available")).toBeVisible();
+    expect(screen.getByText("100% available")).toBeVisible();
   });
 
   it("shows the first-run import CTA when no staffing data exists", () => {

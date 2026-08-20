@@ -25,8 +25,10 @@ export type MonthlyPersonCapacity = {
   person: CapacityPerson;
   projects: CapacityProject[];
   contractualCapacityPercentage: number;
-  totalAllocation: number;
-  remainingCapacity: number;
+  effectiveCapacityPercentage: number;
+  totalAllocationPercentage: number;
+  remainingCapacityPercentage: number;
+  unavailableWeekdays: number;
   status: CapacityStatus;
 };
 
@@ -53,6 +55,30 @@ export function calculateContractualCapacityPercentage(fte: number): number {
   return fte * 100;
 }
 
+export function roundCapacityPercentage(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function calculateEffectiveCapacityPercentage({
+  contractualCapacityPercentage,
+  workingDayCount,
+  unavailableWeekdays,
+}: {
+  contractualCapacityPercentage: number;
+  workingDayCount: number;
+  unavailableWeekdays: number;
+}): number {
+  if (unavailableWeekdays === 0) {
+    return contractualCapacityPercentage;
+  }
+
+  const availableDays = workingDayCount - unavailableWeekdays;
+
+  return roundCapacityPercentage(
+    (availableDays / workingDayCount) * contractualCapacityPercentage,
+  );
+}
+
 export function calculateTotalAllocation(
   assignments: { allocationPercentage: number }[],
 ): number {
@@ -63,17 +89,17 @@ export function calculateTotalAllocation(
 }
 
 export function calculateCapacityStatus({
-  contractualCapacityPercentage,
-  totalAllocation,
+  effectiveCapacityPercentage,
+  totalAllocationPercentage,
 }: {
-  contractualCapacityPercentage: number;
-  totalAllocation: number;
+  effectiveCapacityPercentage: number;
+  totalAllocationPercentage: number;
 }): CapacityStatus {
-  if (totalAllocation < contractualCapacityPercentage) {
+  if (totalAllocationPercentage < effectiveCapacityPercentage) {
     return "available";
   }
 
-  if (totalAllocation === contractualCapacityPercentage) {
+  if (totalAllocationPercentage === effectiveCapacityPercentage) {
     return "at_capacity";
   }
 
@@ -83,22 +109,38 @@ export function calculateCapacityStatus({
 export function buildMonthlyPersonCapacity(
   person: CapacityPerson,
   projects: CapacityProject[],
+  {
+    workingDayCount,
+    unavailableWeekdays = 0,
+  }: {
+    workingDayCount: number;
+    unavailableWeekdays?: number;
+  },
 ): MonthlyPersonCapacity {
   const contractualCapacityPercentage = calculateContractualCapacityPercentage(
     person.fte,
   );
-  const totalAllocation = calculateTotalAllocation(projects);
-  const remainingCapacity = contractualCapacityPercentage - totalAllocation;
+  const effectiveCapacityPercentage = calculateEffectiveCapacityPercentage({
+    contractualCapacityPercentage,
+    workingDayCount,
+    unavailableWeekdays,
+  });
+  const totalAllocationPercentage = calculateTotalAllocation(projects);
+  const remainingCapacityPercentage = roundCapacityPercentage(
+    effectiveCapacityPercentage - totalAllocationPercentage,
+  );
 
   return {
     person,
     projects,
     contractualCapacityPercentage,
-    totalAllocation,
-    remainingCapacity,
+    effectiveCapacityPercentage,
+    totalAllocationPercentage,
+    remainingCapacityPercentage,
+    unavailableWeekdays,
     status: calculateCapacityStatus({
-      contractualCapacityPercentage,
-      totalAllocation,
+      effectiveCapacityPercentage,
+      totalAllocationPercentage,
     }),
   };
 }

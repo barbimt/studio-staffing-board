@@ -94,7 +94,7 @@
 
 **Why:** `HOLIDAY-UK` and `HOLIDAY-PT` describe a holiday region, not a studio site. The mapping lives in one import-time table: `HOLIDAY-UK` → `UK`, `HOLIDAY-PT` → `PT`. Unknown categories are stored as source text with no inferred person or region.
 
-**Trade-off:** People are stored with sites such as Bristol and Porto. Monthly capacity does not join those sites to holiday regions.
+**Trade-off:** People are stored with sites such as Bristol and Porto. Capacity joins those sites to holiday regions through one `regionForSite` map (`Bristol` → `UK`, `Porto` → `PT`). An unknown site gets personal leave only.
 
 ## Recurrences are materialised during import
 
@@ -108,11 +108,11 @@
 
 **Trade-off:** The current source is bounded (`UNTIL=20261012T235900Z`). An RRULE without `UNTIL` or `COUNT` cannot be imported.
 
-## Core monthly capacity is contractual FTE
+## Core monthly capacity keeps contractual FTE and adds effective capacity
 
-**Why:** The required question is whether a person can take more work in the selected month. `contractualCapacityPercentage = fte × 100`. Leave, holidays, and ceremonies are stored from calendar import and are not part of this calculation.
+**Why:** The producer question is whether a person can take more work in the selected month after time off. `contractualCapacityPercentage = fte × 100` stays the baseline. `effectiveCapacityPercentage` is that value scaled by remaining weekdays after personal leave and public holidays for the person’s holiday region. Allocation is still the sum of overlapping assignment percentages. Status and remaining capacity are compared to effective capacity.
 
-**Trade-off:** Someone who starts or ends mid-month still receives their full contractual percentage. We do not prorate by working days.
+**Trade-off:** Someone who starts or ends mid-month still receives their full contractual percentage. We do not prorate employment by working days. Weekends never count. Leave and a regional holiday on the same weekday count once. Ceremonies do not reduce capacity.
 
 ## People and projects are active on month overlap
 
