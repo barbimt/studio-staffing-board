@@ -1,9 +1,5 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { readFixture } from "@/test/read-fixture";
 
 export function readCalendarFixture(name: string): string {
-  return readFileSync(
-    fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)),
-    "utf8",
-  );
+  return readFixture(import.meta.url, name);
 }

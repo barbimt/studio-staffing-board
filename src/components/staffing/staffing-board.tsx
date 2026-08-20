@@ -20,7 +20,7 @@ export function StaffingBoard({
     <main className="mx-auto max-w-6xl px-6 py-8">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">
-          Studio Capacity
+          Studio Staffing Board
         </h1>
         <p className="text-muted-foreground mt-1">
           Can this person take on more work this month?

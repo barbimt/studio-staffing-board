@@ -85,4 +85,15 @@ describe("importStudioData", () => {
     expect(importProjects).toHaveBeenCalledWith(tx, expect.any(Array));
     expect(importCalendar).toHaveBeenCalledWith(tx, expect.any(Array));
   });
+
+  it("does not wrap unexpected persist failures as import validation errors", async () => {
+    vi.mocked(importPeople).mockRejectedValue(new Error("ECONNREFUSED"));
+
+    await expect(importStudioData(database, validSources)).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof Error &&
+        error.message === "ECONNREFUSED" &&
+        !(error instanceof StudioImportError),
+    );
+  });
 });

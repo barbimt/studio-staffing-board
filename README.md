@@ -1,4 +1,4 @@
-# Studio Capacity
+# Studio Staffing Board
 
 Internal tool for seeing who has capacity across projects and months.
 

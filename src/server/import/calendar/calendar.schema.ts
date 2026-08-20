@@ -22,9 +22,7 @@ export function regionForCategory(category: string): string | null {
   return HOLIDAY_REGION_BY_CATEGORY[category] ?? null;
 }
 
-export function normalizeEmail(value: string): string {
-  return value.trim().toLowerCase();
-}
+export { normalizeEmail } from "../normalize-email";
 
 const calendarDateSchema = z.iso.date({ error: "Date is invalid" });
 

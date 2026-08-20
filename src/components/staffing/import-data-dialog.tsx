@@ -9,11 +9,7 @@ import {
   type ReactElement,
 } from "react";
 
-import {
-  AlertCircleIcon,
-  CheckCircle2Icon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { AlertCircleIcon, TriangleAlertIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -36,9 +32,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   hasStudioImportErrors,
-  type StudioImportResult,
+  parseStudioImportResult,
   type StudioImportSourceErrors,
 } from "@/lib/import-result";
+import { cn } from "@/lib/utils";
 import {
   validateSelectedImportFile,
   visibleImportErrors,
@@ -51,28 +48,24 @@ const fields: {
   label: string;
   accept: string;
   heading: string;
-  chooseLabel: string;
 }[] = [
   {
     source: "people",
     label: "People — CSV",
     accept: ".csv,text/csv",
     heading: "People",
-    chooseLabel: "Choose people file",
   },
   {
     source: "projects",
     label: "Projects — CSV",
     accept: ".csv,text/csv",
     heading: "Projects",
-    chooseLabel: "Choose projects file",
   },
   {
     source: "calendar",
     label: "Leave calendar — ICS",
     accept: ".ics,text/calendar",
     heading: "Leave calendar",
-    chooseLabel: "Choose leave calendar file",
   },
 ];
 
@@ -197,10 +190,10 @@ export function ImportDataDialog({
         method: "POST",
         body,
       });
-      const result = (await response.json()) as StudioImportResult;
+      const result = parseStudioImportResult(await response.json());
 
-      if (!result.ok) {
-        setServerErrors(result.errors);
+      if (!response.ok || !result?.ok) {
+        setServerErrors(result && !result.ok ? result.errors : {});
         setFailed(true);
         setPending(false);
         queueMicrotask(() => errorSummaryRef.current?.focus());
@@ -231,7 +224,7 @@ export function ImportDataDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger render={trigger} />
         <DialogContent
-          className="flex max-h-[min(90dvh,40rem)] flex-col overflow-hidden sm:max-w-md"
+          className="flex max-h-[min(90dvh,48rem)] flex-col overflow-hidden sm:max-w-lg"
           aria-busy={pending}
         >
           <DialogHeader className="shrink-0">
@@ -244,7 +237,7 @@ export function ImportDataDialog({
             id={formId}
             key={fileInputKey}
             onSubmit={handleSubmit}
-            className="min-h-0 flex-1 overflow-y-auto"
+            className="min-h-0 flex-1 overflow-y-auto px-1 py-0.5"
           >
             <FieldGroup className="gap-4">
               {hasStaffingData ? (
@@ -260,7 +253,6 @@ export function ImportDataDialog({
                 <div
                   ref={errorSummaryRef}
                   tabIndex={-1}
-                  role="alert"
                   className="outline-none"
                 >
                   <Alert variant="destructive">
@@ -268,41 +260,47 @@ export function ImportDataDialog({
                       We couldn&apos;t import the studio data.
                     </AlertTitle>
                     <AlertDescription>
-                      <p>Fix the issues below and try again.</p>
-                      {showServerErrors ? null : (
-                        <p className="mt-2">The import failed. Try again.</p>
+                      {showServerErrors ? (
+                        <>
+                          <p>Fix the issues below and try again.</p>
+                          <ScrollArea className="mt-3 h-48 pr-3">
+                            {fields.map((field) => {
+                              const messages = serverErrors[field.source];
+
+                              if (!messages?.length) {
+                                return null;
+                              }
+
+                              const { shown, remaining } =
+                                visibleImportErrors(messages);
+
+                              return (
+                                <div
+                                  key={field.source}
+                                  className="mt-3 first:mt-0"
+                                >
+                                  <p className="text-foreground font-medium">
+                                    {field.heading}
+                                  </p>
+                                  <ul className="mt-1 list-disc pl-4">
+                                    {shown.map((message) => (
+                                      <li key={message}>{message}</li>
+                                    ))}
+                                  </ul>
+                                  {remaining > 0 ? (
+                                    <p className="mt-1">
+                                      and {remaining} more{" "}
+                                      {remaining === 1 ? "issue" : "issues"}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              );
+                            })}
+                          </ScrollArea>
+                        </>
+                      ) : (
+                        <p>The import failed. Try again.</p>
                       )}
-                      <ScrollArea className="mt-3 h-48 pr-3">
-                        {fields.map((field) => {
-                          const messages = serverErrors[field.source];
-
-                          if (!messages?.length) {
-                            return null;
-                          }
-
-                          const { shown, remaining } =
-                            visibleImportErrors(messages);
-
-                          return (
-                            <div key={field.source} className="mt-3 first:mt-0">
-                              <p className="text-foreground font-medium">
-                                {field.heading}
-                              </p>
-                              <ul className="mt-1 list-disc pl-4">
-                                {shown.map((message) => (
-                                  <li key={message}>{message}</li>
-                                ))}
-                              </ul>
-                              {remaining > 0 ? (
-                                <p className="mt-1">
-                                  and {remaining} more{" "}
-                                  {remaining === 1 ? "issue" : "issues"}
-                                </p>
-                              ) : null}
-                            </div>
-                          );
-                        })}
-                      </ScrollArea>
                     </AlertDescription>
                   </Alert>
                 </div>
@@ -315,11 +313,6 @@ export function ImportDataDialog({
                 const sourceHasServerErrors = Boolean(
                   serverErrors[field.source]?.length,
                 );
-                const describedBy = fieldError
-                  ? errorId
-                  : files[field.source]
-                    ? selectedId
-                    : undefined;
                 const selectedName = files[field.source]?.name;
                 const fileLooksValid = Boolean(
                   selectedName &&
@@ -327,6 +320,11 @@ export function ImportDataDialog({
                   !fieldError &&
                   !sourceHasServerErrors,
                 );
+                const describedBy = fieldError
+                  ? errorId
+                  : fileLooksValid || sourceHasServerErrors
+                    ? selectedId
+                    : undefined;
 
                 return (
                   <Field
@@ -340,48 +338,30 @@ export function ImportDataDialog({
                       type="file"
                       accept={field.accept}
                       disabled={pending}
+                      aria-label={field.label}
                       aria-invalid={
                         Boolean(fieldError) || sourceHasServerErrors
                       }
                       aria-describedby={describedBy || undefined}
-                      className="sr-only"
+                      className={cn(
+                        "border-input file:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 disabled:bg-input/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:bg-input/30 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 h-8 w-full min-w-0 cursor-pointer rounded-lg border bg-transparent text-sm transition-colors outline-none file:me-3 file:inline-flex file:h-full file:cursor-pointer file:border-0 file:bg-transparent file:px-3 file:text-sm file:font-medium focus-visible:ring-3 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-3",
+                        fileLooksValid &&
+                          "border-green-600 dark:border-green-500",
+                      )}
                       onChange={(event) =>
                         void handleFileChange(field.source, event.target.files)
                       }
                     />
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={pending}
-                        onClick={() =>
-                          document.getElementById(inputId)?.click()
-                        }
-                      >
-                        {field.chooseLabel}
-                      </Button>
-                      {fileLooksValid ? (
-                        <CheckCircle2Icon
-                          className="size-4 shrink-0 text-green-600 dark:text-green-500"
-                          aria-hidden
-                        />
-                      ) : null}
-                      <FieldDescription
-                        id={selectedId}
-                        className="min-w-0 truncate"
-                      >
-                        {selectedName ?? "No file selected"}
-                        {fileLooksValid ? (
-                          <span className="sr-only"> File looks valid.</span>
-                        ) : null}
-                        {selectedName && sourceHasServerErrors
-                          ? " — has problems"
-                          : ""}
+                    {fileLooksValid || sourceHasServerErrors ? (
+                      <FieldDescription id={selectedId} className="sr-only">
+                        {fileLooksValid
+                          ? "File looks valid."
+                          : "This file has problems."}
                       </FieldDescription>
-                    </div>
+                    ) : null}
                     {fieldError ? (
                       <Alert id={errorId} variant="destructive">
-                        <AlertCircleIcon />
+                        <AlertCircleIcon aria-hidden="true" />
                         <AlertTitle>{fieldError.message}</AlertTitle>
                         {fieldError.details?.length ? (
                           <AlertDescription>

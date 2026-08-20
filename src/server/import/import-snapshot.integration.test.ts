@@ -407,4 +407,135 @@ describe.skipIf(!testDatabaseUrl)("import snapshot reconciliation", () => {
 
     expect(await persistedSnapshot(db)).toEqual(snapshotA);
   });
+
+  it("rolls back when calendar leave matching fails after people and projects wrote", async () => {
+    await importStudioData(db, {
+      peopleCsv: threePeople,
+      projectsCsv: lanternOnly,
+      calendarIcs: twoHolidayCalendar,
+    });
+
+    const snapshotA = await persistedSnapshot(db);
+    const unmatchedLeave = calendarIcs(
+      [
+        "BEGIN:VEVENT",
+        "UID:leave-unknown@example.com",
+        "SUMMARY:Annual Leave",
+        "DTSTART;VALUE=DATE:20260921",
+        "DTEND;VALUE=DATE:20260926",
+        "ATTENDEE;CN=Unknown:mailto:unknown@example.com",
+        "CATEGORIES:LEAVE",
+        "STATUS:CONFIRMED",
+        "END:VEVENT",
+      ].join("\n"),
+    );
+
+    await expect(
+      importStudioData(db, {
+        peopleCsv: threePeople,
+        projectsCsv: lanternOnly,
+        calendarIcs: unmatchedLeave,
+      }),
+    ).rejects.toSatisfy((error: unknown) => {
+      return (
+        error instanceof StudioImportError &&
+        Boolean(
+          error.errors.calendar?.some((message) =>
+            /unknown@example.com/.test(message),
+          ),
+        )
+      );
+    });
+
+    expect(await persistedSnapshot(db)).toEqual(snapshotA);
+  });
+
+  it("swaps work emails between remaining people in one snapshot", async () => {
+    await importStudioData(db, {
+      peopleCsv: threePeople,
+      projectsCsv: lanternOnly,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const swapped = peopleCsv([
+      { ...maria, email: alex.email },
+      { ...priya, email: maria.email },
+      { ...alex, email: priya.email },
+    ]);
+
+    await importStudioData(db, {
+      peopleCsv: swapped,
+      projectsCsv: lanternOnly,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const rows = await db
+      .select({
+        employeeId: people.employeeId,
+        workEmail: people.workEmail,
+      })
+      .from(people)
+      .orderBy(asc(people.employeeId));
+
+    expect(rows).toEqual([
+      { employeeId: "E002", workEmail: priya.email },
+      { employeeId: "E003", workEmail: alex.email },
+      { employeeId: "E005", workEmail: maria.email },
+    ]);
+  });
+
+  it("lets a remaining person reuse a departed person's work email", async () => {
+    await importStudioData(db, {
+      peopleCsv: threePeople,
+      projectsCsv: lanternOnly,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    await importStudioData(db, {
+      peopleCsv: peopleCsv([{ ...maria, email: alex.email }, priya]),
+      projectsCsv: lanternOnly,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const rows = await db
+      .select({
+        employeeId: people.employeeId,
+        workEmail: people.workEmail,
+      })
+      .from(people)
+      .orderBy(asc(people.employeeId));
+
+    expect(rows).toEqual([
+      { employeeId: "E003", workEmail: alex.email },
+      { employeeId: "E005", workEmail: priya.email },
+    ]);
+  });
+
+  it("includes people and projects that only overlap the month boundary", async () => {
+    const boundaryPeople = [
+      peopleHeader,
+      "E010,Sept,Start,sept.start@example.com,Engineering,Developer,Bristol,1.0,2026-09-30,,",
+      "E011,Aug,End,aug.end@example.com,Engineering,Developer,Bristol,1.0,2026-01-01,2026-08-31,",
+    ].join("\n");
+    const boundaryProjects = [
+      projectsHeader,
+      "Boundary,Active,Acme,PC,2026-09-30,2026-10-15,Sept Start,40",
+    ].join("\n");
+
+    await importStudioData(db, {
+      peopleCsv: boundaryPeople,
+      projectsCsv: boundaryProjects,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const september = await getMonthlyCapacity(db, "2026-09");
+    const names = september.map(
+      (row) => `${row.person.firstName} ${row.person.lastName}`,
+    );
+
+    expect(names).toEqual(["Sept Start"]);
+    expect(september[0]?.projects).toEqual([
+      expect.objectContaining({ name: "Boundary", allocationPercentage: 40 }),
+    ]);
+  });
 });

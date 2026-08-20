@@ -89,7 +89,6 @@ describe("ImportDataDialog", () => {
     expect(submitButton()).toBeDisabled();
 
     choose("People — CSV", csv("people-export.csv", peopleCsv));
-    expect(await screen.findByText("people-export.csv")).toBeVisible();
     expect(await screen.findByText("File looks valid.")).toBeInTheDocument();
     expect(submitButton()).toBeDisabled();
 
@@ -197,7 +196,7 @@ describe("ImportDataDialog", () => {
     expect(
       screen.getByRole("heading", { name: "Import studio data" }),
     ).toBeVisible();
-    expect(screen.getByText(/people-export.csv/)).toBeVisible();
+    expect(screen.getAllByText("This file has problems.")).toHaveLength(3);
     expect(refresh).not.toHaveBeenCalled();
   });
 
@@ -278,7 +277,7 @@ describe("ImportDataDialog", () => {
     await chooseValidFilesAndSubmit();
 
     expect(await screen.findByText(/Alex Tuner/)).toBeVisible();
-    expect(screen.getByText("people-export.csv")).toBeVisible();
+    expect(screen.getByText("This file has problems.")).toBeInTheDocument();
 
     choose("Projects — CSV", csv("projects-fixed.csv", projectsCsv));
     await waitFor(() => {
@@ -315,6 +314,47 @@ describe("ImportDataDialog", () => {
       screen.queryByRole("heading", { name: "Import studio data" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("Studio data imported.")).toBeInTheDocument();
+  });
+
+  it("does not show a field-error list when the import fails without source issues", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ ok: false, errors: {} }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    renderDialog();
+    fireEvent.click(screen.getByRole("button", { name: "Import data" }));
+    await screen.findByLabelText("People — CSV");
+    await chooseValidFilesAndSubmit();
+
+    expect(
+      await screen.findByText("We couldn't import the studio data."),
+    ).toBeVisible();
+    expect(screen.getByText("The import failed. Try again.")).toBeVisible();
+    expect(
+      screen.queryByText("Fix the issues below and try again."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not treat HTTP errors as a successful import even if ok is true", async () => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    renderDialog();
+    fireEvent.click(screen.getByRole("button", { name: "Import data" }));
+    await screen.findByLabelText("People — CSV");
+    await chooseValidFilesAndSubmit();
+
+    expect(
+      await screen.findByText("We couldn't import the studio data."),
+    ).toBeVisible();
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it("shows the re-import warning when staffing data already exists", async () => {

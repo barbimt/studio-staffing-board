@@ -73,6 +73,32 @@ describe("parsePeopleCsv", () => {
     expect(person.workEmail).toBe("alex@example.com");
   });
 
+  it("treats missing End Date and Manager Email headers as empty", () => {
+    expect(
+      parsePeopleCsv(readPeopleFixture("without-optional-headers.csv")),
+    ).toEqual([
+      {
+        employeeId: "E001",
+        firstName: "Hannah",
+        lastName: "Whitmore",
+        workEmail: "hannah.whitmore@example.com",
+        department: "Studio",
+        jobTitle: "Studio Director",
+        site: "Bristol",
+        fte: 1,
+        startDate: "2021-03-01",
+        endDate: null,
+        managerEmail: null,
+      },
+    ]);
+  });
+
+  it("rejects an End Date before Start Date", () => {
+    expect(() =>
+      parsePeopleCsv(readPeopleFixture("end-before-start.csv")),
+    ).toThrow(/Row 2: End Date must be on or after Start Date/);
+  });
+
   it("keeps quoted commas inside CSV fields", () => {
     const [person] = parsePeopleCsv(readPeopleFixture("quoted-name.csv"));
 

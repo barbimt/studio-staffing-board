@@ -56,6 +56,12 @@ describe("parseProjectsCsv", () => {
     ).toThrow(/Name is duplicated/);
   });
 
+  it("rejects an End before Start", () => {
+    expect(() =>
+      parseProjectsCsv(readProjectsFixture("end-before-start.csv")),
+    ).toThrow(/Row 2: End must be on or after Start/);
+  });
+
   it("treats empty Team and Allocation % as zero assignments", () => {
     expect(
       parseProjectsCsv(readProjectsFixture("empty-assignments.csv")),

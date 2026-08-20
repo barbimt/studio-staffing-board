@@ -14,7 +14,7 @@
 
 ## Re-import updates existing people on `employee_id`
 
-**Why:** The import must be runnable again without duplicating people. PostgreSQL `ON CONFLICT (employee_id) DO UPDATE` keeps the internal `people.id` stable while refreshing mutable HR fields.
+**Why:** The import must be runnable again without duplicating people. PostgreSQL `ON CONFLICT (employee_id) DO UPDATE` keeps the internal `people.id` stable while refreshing mutable HR fields. Rows missing from the file are deleted first so a remaining person can reuse a departed work email. Remaining people who swap emails are parked on unique temporary addresses, then updated to the snapshot values.
 
 **Trade-off:** A later file can overwrite local HR field values for people it contains. That is the intended source-of-truth behaviour for this import.
 
@@ -54,11 +54,11 @@
 
 **Trade-off:** The application has no bundled staffing snapshot. A fresh database stays empty until someone imports.
 
-## Client checks are selection-only; the importer owns correctness
+## Client checks are UX-only; the importer owns correctness
 
-**Why:** The browser only checks that all three files are present, look like `.csv` / `.ics`, are not empty, and stay under `MAX_IMPORT_FILE_BYTES`. Filename, extension, and MIME type are not treated as proof of content. Row, matching, and recurrence rules stay in the existing parse/match pipeline.
+**Why:** The browser and the route handler share the same shallow checks: all three files are present, look like `.csv` / `.ics`, are not empty, stay under `MAX_IMPORT_FILE_BYTES`, and have the required CSV headers or `BEGIN:VCALENDAR`. Filename, extension, and MIME type are not treated as proof of content. Row, matching, and recurrence rules stay in the parse/match pipeline. Optional people columns (`End Date`, `Manager Email`) may be omitted; missing headers are stored as empty.
 
-**Trade-off:** A CSV with the right extension can still fail after submit. That failure is shown in the same dialog, grouped by source.
+**Trade-off:** A CSV with the right headers can still fail after submit. That failure is shown in the same dialog, grouped by source.
 
 ## Re-import updates the current snapshot
 
@@ -86,7 +86,7 @@
 
 ## ICS all-day dates retain exclusive DTEND semantics
 
-**Why:** ICS `VALUE=DATE` `DTEND` is exclusive. `DTSTART:20260921` / `DTEND:20260926` means 21–25 September. Storing the same exclusive end date on `calendar_events` and `calendar_event_occurrences` avoids converting DATE values through timezones.
+**Why:** ICS `VALUE=DATE` `DTEND` is exclusive. `DTSTART:20260921` / `DTEND:20260926` means 21–25 September. node-ical stores that DATE on a `Date` using local calendar components; we format those with `getFullYear` / `getMonth` / `getDate` so we do not convert the DATE through UTC.
 
 **Trade-off:** All-day stored `end_date` is exclusive, the same as ICS. Inclusive last-day math would be off by one.
 

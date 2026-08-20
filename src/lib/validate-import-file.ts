@@ -1,6 +1,6 @@
 import { MAX_IMPORT_FILE_BYTES } from "@/lib/import-limits";
 
-export type ImportFileKind = "csv" | "ics";
+type ImportFileKind = "csv" | "ics";
 export type ImportSource = "people" | "projects" | "calendar";
 
 const kindBySource: Record<ImportSource, ImportFileKind> = {

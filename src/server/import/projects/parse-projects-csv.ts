@@ -1,42 +1,14 @@
 import { CsvError, parse } from "csv-parse/sync";
 
 import {
+  collectDuplicateErrors,
+  formatCsvRowIssue,
+} from "../csv-duplicate-errors";
+import {
   projectsCsvRowSchema,
   ProjectsImportError,
   type ImportedProject,
 } from "./projects.schema";
-
-export { ProjectsImportError, type ImportedProject };
-
-function formatIssue(rowNumber: number, message: string): string {
-  return `Row ${rowNumber}: ${message}`;
-}
-
-function collectDuplicateNameErrors(
-  entries: { rowNumber: number; name: string }[],
-): string[] {
-  const rowsByName = new Map<string, number[]>();
-
-  for (const entry of entries) {
-    const rows = rowsByName.get(entry.name) ?? [];
-    rows.push(entry.rowNumber);
-    rowsByName.set(entry.name, rows);
-  }
-
-  const errors: string[] = [];
-
-  for (const rows of rowsByName.values()) {
-    if (rows.length < 2) {
-      continue;
-    }
-
-    for (const rowNumber of rows) {
-      errors.push(formatIssue(rowNumber, "Name is duplicated"));
-    }
-  }
-
-  return errors;
-}
 
 export function parseProjectsCsv(csvText: string): ImportedProject[] {
   let records: Record<string, string>[];
@@ -63,7 +35,7 @@ export function parseProjectsCsv(csvText: string): ImportedProject[] {
 
     if (!result.success) {
       for (const issue of result.error.issues) {
-        errors.push(formatIssue(rowNumber, issue.message));
+        errors.push(formatCsvRowIssue(rowNumber, issue.message));
       }
       continue;
     }
@@ -72,11 +44,12 @@ export function parseProjectsCsv(csvText: string): ImportedProject[] {
   }
 
   errors.push(
-    ...collectDuplicateNameErrors(
+    ...collectDuplicateErrors(
       projects.map(({ rowNumber, project }) => ({
         rowNumber,
-        name: project.name,
+        value: project.name,
       })),
+      "Name",
     ),
   );
 

@@ -72,7 +72,7 @@ describe("StaffingBoard", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Studio Capacity" }),
+      screen.getByRole("heading", { name: "Studio Staffing Board" }),
     ).toBeVisible();
     expect(screen.getByText("Alex Turner")).toBeVisible();
     expect(screen.getByText("Lead Developer")).toBeVisible();

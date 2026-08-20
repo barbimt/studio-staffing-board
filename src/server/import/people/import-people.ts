@@ -12,7 +12,31 @@ export async function importPeople(
   const employeeIds = records.map((person) => person.employeeId);
 
   try {
+    const stalePeople =
+      employeeIds.length === 0
+        ? await database.select({ id: people.id }).from(people)
+        : await database
+            .select({ id: people.id })
+            .from(people)
+            .where(notInArray(people.employeeId, employeeIds));
+
+    if (stalePeople.length > 0) {
+      const staleIds = stalePeople.map((person) => person.id);
+
+      await database
+        .delete(assignments)
+        .where(inArray(assignments.personId, staleIds));
+      await database.delete(people).where(inArray(people.id, staleIds));
+    }
+
     if (records.length > 0) {
+      await database
+        .update(people)
+        .set({
+          workEmail: sql`'importing.' || ${people.employeeId} || '@invalid'`,
+        })
+        .where(inArray(people.employeeId, employeeIds));
+
       await database
         .insert(people)
         .values(records)
@@ -32,28 +56,7 @@ export async function importPeople(
           },
         });
     }
-
-    const stalePeople =
-      employeeIds.length === 0
-        ? await database.select({ id: people.id }).from(people)
-        : await database
-            .select({ id: people.id })
-            .from(people)
-            .where(notInArray(people.employeeId, employeeIds));
-
-    if (stalePeople.length > 0) {
-      const staleIds = stalePeople.map((person) => person.id);
-
-      await database
-        .delete(assignments)
-        .where(inArray(assignments.personId, staleIds));
-      await database.delete(people).where(inArray(people.id, staleIds));
-    }
   } catch (error) {
-    if (error instanceof PeopleImportError) {
-      throw error;
-    }
-
     if (
       error instanceof postgres.PostgresError &&
       error.code === "23505" &&
@@ -64,7 +67,7 @@ export async function importPeople(
       );
     }
 
-    throw new PeopleImportError("People import failed");
+    throw error;
   }
 
   return { count: records.length };

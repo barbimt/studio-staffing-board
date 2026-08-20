@@ -1,3 +1,5 @@
+import "server-only";
+
 import { type AppDatabase } from "../db/client";
 import { CalendarImportError } from "./calendar/calendar.schema";
 import { importCalendar } from "./calendar/import-calendar";
@@ -12,9 +14,6 @@ import {
   hasStudioImportErrors,
   type StudioImportSourceErrors,
 } from "@/lib/import-result";
-
-export type { StudioImportSourceErrors };
-export { hasStudioImportErrors };
 
 export class StudioImportError extends Error {
   readonly errors: StudioImportSourceErrors;
@@ -97,6 +96,6 @@ export async function importStudioData(
       throw new StudioImportError({ calendar: error.messages });
     }
 
-    throw new StudioImportError({});
+    throw error;
   }
 }

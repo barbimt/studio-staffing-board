@@ -64,9 +64,11 @@ export async function POST(request: Request) {
     return jsonError(errors, 400);
   }
 
-  const peopleCsv = await people.text();
-  const projectsCsv = await projects.text();
-  const calendarIcs = await calendar.text();
+  const [peopleCsv, projectsCsv, calendarIcs] = await Promise.all([
+    people.text(),
+    projects.text(),
+    calendar.text(),
+  ]);
 
   const peopleContentError = validateImportContents(peopleCsv, "people");
   const projectsContentError = validateImportContents(projectsCsv, "projects");

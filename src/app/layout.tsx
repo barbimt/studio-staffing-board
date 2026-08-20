@@ -11,8 +11,8 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Studio Capacity",
-  description: "Internal studio capacity planning",
+  title: "Studio Staffing Board",
+  description: "Internal studio staffing and capacity planning",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
