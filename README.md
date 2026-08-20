@@ -6,7 +6,7 @@ The home page is the monthly staffing board. Open http://localhost:3000 or a spe
 
 ## Run locally
 
-Needs Node 20.9+, pnpm, and Docker.
+Needs Node 22.22+, pnpm, and Docker.
 
 ```bash
 pnpm install
