@@ -17,17 +17,17 @@ export function MonthSwitcher({ month }: { month: string }) {
   return (
     <nav
       aria-label="Selected month"
-      className="text-foreground mt-6 flex items-center gap-3"
+      className="text-foreground flex items-center gap-3"
     >
       <Link
         href={staffingMonthHref(previousMonth)}
         aria-label="Previous month"
-        className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+        className={cn(buttonVariants({ variant: "outline", size: "icon-lg" }))}
       >
         <ChevronLeft aria-hidden="true" />
       </Link>
       <p
-        className="min-w-40 text-center text-base font-medium"
+        className="min-w-40 text-center text-base font-medium tabular-nums"
         aria-live="polite"
       >
         {label}
@@ -35,7 +35,7 @@ export function MonthSwitcher({ month }: { month: string }) {
       <Link
         href={staffingMonthHref(nextMonth)}
         aria-label="Next month"
-        className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+        className={cn(buttonVariants({ variant: "outline", size: "icon-lg" }))}
       >
         <ChevronRight aria-hidden="true" />
       </Link>
