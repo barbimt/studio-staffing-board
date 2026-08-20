@@ -23,8 +23,9 @@
 # editor
 .vscode/
 
-# local build log (Notion copy); do not push
+# personal local notes (do not push)
 /docs/
+.cursor/rules/build-log.mdc
 
 # misc
 .DS_Store
