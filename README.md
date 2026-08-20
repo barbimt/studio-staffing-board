@@ -24,19 +24,20 @@ PostgreSQL runs in Docker. After the database is up, apply migrations with `pnpm
 
 After schema changes, generate a new SQL migration with `pnpm db:generate`, inspect it, then migrate again.
 
-## Import people and projects
+## Import people, projects, and calendar
 
-These commands are local verification helpers. They read CSV files from `data/` so we can exercise the import pipeline before the upload UI exists. The application does not depend on those files. Once UI upload lands, these CLIs should be reviewed and removed or replaced.
+These commands are local verification helpers. They read files from `data/` so we can exercise the import pipeline before the upload UI exists. The application does not depend on those files. Once UI upload lands, these CLIs should be reviewed and removed or replaced.
 
-People must be imported first so project team names can resolve to canonical people.
+People must be imported first so project team names and calendar leave attendees can resolve to canonical people.
 
 ```bash
 pnpm db:migrate
 pnpm import:people
 pnpm import:projects
+pnpm import:calendar
 ```
 
-Safe to run more than once: existing people are updated by Employee ID, existing projects by name, and assignments for imported projects are reconciled to the latest snapshot.
+Safe to run more than once: existing people are updated by Employee ID, existing projects by name, assignments for imported projects are reconciled to the latest snapshot, and calendar events are upserted by UID with occurrences reconciled to the latest expansion.
 
 ## Checks
 
