@@ -1,7 +1,9 @@
 /** @vitest-environment jsdom */
 
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { STAFFING_COLUMN_SIZING_KEY } from "@/components/staffing/staffing-column-sizing";
 
 import { StaffingBoard } from "@/components/staffing/staffing-board";
 import type { MonthlyPersonCapacity } from "@/server/capacity/calculate-capacity";
@@ -35,6 +37,10 @@ function person({
 }
 
 describe("StaffingBoard", () => {
+  afterEach(() => {
+    window.localStorage.removeItem(STAFFING_COLUMN_SIZING_KEY);
+  });
+
   it("renders people, role, site, projects, capacity, and status", () => {
     render(
       <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
@@ -174,14 +180,59 @@ describe("StaffingBoard", () => {
       <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
     );
 
-    for (const column of ["Person", "Site", "Projects", "Capacity"]) {
+    for (const column of ["Projects", "Capacity"]) {
       expect(
         screen.getByRole("button", { name: `Resize ${column} column` }),
       ).toBeVisible();
     }
 
-    expect(
-      screen.queryByRole("button", { name: "Resize Status column" }),
-    ).not.toBeInTheDocument();
+    for (const column of ["Person", "Site", "Status"]) {
+      expect(
+        screen.queryByRole("button", { name: `Resize ${column} column` }),
+      ).not.toBeInTheDocument();
+    }
+  });
+
+  it("resizes a column with arrow keys and persists the width", () => {
+    render(
+      <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
+    );
+
+    const handle = screen.getByRole("button", {
+      name: "Resize Projects column",
+    });
+    const header = handle.closest("th");
+
+    expect(header).toHaveStyle({ width: "280px" });
+
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+
+    expect(header).toHaveStyle({ width: "296px" });
+    expect(window.localStorage.getItem(STAFFING_COLUMN_SIZING_KEY)).toContain(
+      '"projects":296',
+    );
+
+    fireEvent.keyDown(handle, { key: "Home" });
+
+    expect(header).toHaveStyle({ width: "280px" });
+  });
+
+  it("restores persisted column widths", async () => {
+    window.localStorage.setItem(
+      STAFFING_COLUMN_SIZING_KEY,
+      JSON.stringify({ projects: 320 }),
+    );
+
+    render(
+      <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Resize Projects column" })
+          .closest("th"),
+      ).toHaveStyle({ width: "320px" });
+    });
   });
 });

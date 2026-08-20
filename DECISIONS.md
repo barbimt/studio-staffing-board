@@ -126,6 +126,12 @@
 
 **Trade-off:** Those features can be registered later on the same table. This phase only renders rows.
 
+## Column widths stay on the device, not in the URL
+
+**Why:** `/?month=YYYY-MM` is a shareable view. Column widths are a personal layout preference, so they persist in `localStorage` and do not pollute month links.
+
+**Trade-off:** A shared URL does not restore another person's column layout. Clearing site data resets widths to the column defaults.
+
 ## First-run empty is not an empty month
 
 **Why:** `people.length === 0` can mean nobody is employed in the selected month, or that HR data has never been imported. First-run uses an explicit people-row count; an empty selected month does not prompt for import.

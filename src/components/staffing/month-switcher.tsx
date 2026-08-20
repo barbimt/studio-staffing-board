@@ -3,11 +3,11 @@ import Link from "next/link";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatMonthLabel, shiftYearMonth } from "@/server/capacity/month";
-
-export function staffingMonthHref(month: string): string {
-  return `/?month=${month}`;
-}
+import {
+  formatMonthLabel,
+  shiftYearMonth,
+  staffingMonthHref,
+} from "@/server/capacity/month";
 
 export function MonthSwitcher({ month }: { month: string }) {
   const label = formatMonthLabel(month);

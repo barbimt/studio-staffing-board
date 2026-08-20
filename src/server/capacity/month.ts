@@ -81,3 +81,7 @@ export function formatMonthLabel(month: string): string {
     timeZone: "UTC",
   }).format(new Date(Date.UTC(year, monthNumber - 1, 1)));
 }
+
+export function staffingMonthHref(month: string): string {
+  return `/?month=${month}`;
+}

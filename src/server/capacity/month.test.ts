@@ -7,6 +7,7 @@ import {
   parseYearMonth,
   resolveYearMonth,
   shiftYearMonth,
+  staffingMonthHref,
 } from "./month";
 
 describe("parseYearMonth", () => {
@@ -57,5 +58,9 @@ describe("resolveYearMonth", () => {
 describe("month presentation", () => {
   it("formats a long month label", () => {
     expect(formatMonthLabel("2026-09")).toBe("September 2026");
+  });
+
+  it("builds the month query href", () => {
+    expect(staffingMonthHref("2026-08")).toBe("/?month=2026-08");
   });
 });
