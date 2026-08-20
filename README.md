@@ -12,10 +12,17 @@ Needs Node 20.9+, pnpm, and Docker.
 pnpm install
 cp .env.example .env
 docker compose up -d
+pnpm db:migrate
 pnpm dev
 ```
 
 http://localhost:3000
+
+## Database
+
+PostgreSQL runs in Docker. After the database is up, apply migrations with `pnpm db:migrate`.
+
+After schema changes, generate a new SQL migration with `pnpm db:generate`, inspect it, then migrate again.
 
 ## Checks
 
