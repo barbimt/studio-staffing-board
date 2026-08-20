@@ -23,6 +23,9 @@
 # editor
 .vscode/
 
+# local build log (Notion copy); do not push
+/docs/
+
 # misc
 .DS_Store
 *.pem

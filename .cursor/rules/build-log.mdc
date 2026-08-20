@@ -1,0 +1,17 @@
+---
+description: Keep the local phase build log updated as we implement work.
+alwaysApply: true
+---
+
+# Local build log
+
+`docs/guia-studio-capacity.md` is a local Notion guide. It is gitignored and must not be committed.
+
+After finishing a phase, feature, or meaningful set of files:
+
+1. Append a new `Phase N` section (do not rewrite earlier phases unless a fact was wrong)
+2. Include: what we implemented, files added/changed and why, decisions actually made
+3. Write in English
+4. Document only work that landed — not what the app still lacks
+
+When the user asks to copy it to Notion, point them at that file.
