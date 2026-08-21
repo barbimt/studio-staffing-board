@@ -13,7 +13,7 @@ import type { PersonTimeOff } from "@/server/capacity/get-person-detail";
 import { formatMonthLabel, parseYearMonth } from "@/server/capacity/month";
 
 const leaveSwatchClassName =
-  "bg-muted-foreground/40 border-muted-foreground/60 inline-block h-2.5 w-6 shrink-0 rounded-sm border";
+  "border-sky-300 bg-sky-100 dark:border-sky-700 dark:bg-sky-900 inline-block h-2.5 w-6 shrink-0 rounded-sm border";
 
 export function PersonMonthTimeOff({
   month,
@@ -80,7 +80,7 @@ export function PersonMonthTimeOff({
                 return (
                   <div
                     key={`leave-${entry.id}`}
-                    className="bg-muted-foreground/40 border-muted-foreground/60 absolute top-1/2 h-3 -translate-y-1/2 rounded-sm border"
+                    className="absolute top-1/2 h-3 -translate-y-1/2 rounded-sm border border-sky-300 bg-sky-100 dark:border-sky-700 dark:bg-sky-900"
                     style={{
                       left: `${((startDay - 1) / daysInMonth) * 100}%`,
                       width: `${((endDay - startDay + 1) / daysInMonth) * 100}%`,

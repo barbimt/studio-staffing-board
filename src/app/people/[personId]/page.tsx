@@ -1,9 +1,13 @@
 import { connection } from "next/server";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { PersonDetailView } from "@/components/people/person-detail";
 import { getPersonDetail } from "@/server/capacity/get-person-detail";
-import { parsePersonId, resolveYearMonth } from "@/server/capacity/month";
+import {
+  parsePersonId,
+  personDetailHref,
+  resolveYearMonth,
+} from "@/server/capacity/month";
 import { getDb } from "@/server/db";
 
 export async function generateMetadata({
@@ -45,9 +49,14 @@ export default async function PersonDetailPage({
   const { month: monthParam } = await searchParams;
   const month = resolveYearMonth(monthParam);
   const personId = parsePersonId(rawId);
+  const requestedMonth = Array.isArray(monthParam) ? monthParam[0] : monthParam;
 
   if (personId === null) {
     notFound();
+  }
+
+  if (requestedMonth !== undefined && requestedMonth !== month) {
+    redirect(personDetailHref(personId, month));
   }
 
   const detail = await getPersonDetail(getDb(), personId, month);
