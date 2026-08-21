@@ -125,6 +125,48 @@ describe("PersonDetailView", () => {
     expect(screen.getByRole("button", { name: "Edit" })).toBeDisabled();
   });
 
+  it("allows editing a future project without changing the selected month", () => {
+    render(
+      <PersonDetailView
+        detail={detail({
+          assignments: [
+            {
+              assignmentId: 12,
+              projectId: 40,
+              name: "Future Project",
+              client: "Bluebird",
+              status: "Active",
+              startDate: "2026-10-01",
+              endDate: "2026-12-18",
+              allocationPercentage: 50,
+              activeInSelectedMonth: false,
+              overlapsSelectedYear: true,
+            },
+          ],
+          month: {
+            ...detail().month,
+            projects: [],
+            totalAllocationPercentage: 0,
+            remainingCapacityPercentage: 61.82,
+            status: "available",
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/Bluebird · 1 Oct – 18 Dec/)).toBeVisible();
+
+    const editButton = screen.getByRole("button", { name: "Edit" });
+    expect(editButton).toBeEnabled();
+    fireEvent.click(editButton);
+
+    expect(
+      within(screen.getByRole("dialog", { name: "Edit allocation" })).getByText(
+        /not active in September 2026, so this month's capacity will not change/,
+      ),
+    ).toBeVisible();
+  });
+
   it("previews allocation with the status pill instead of help copy", () => {
     render(<PersonDetailView detail={detail()} />);
 
