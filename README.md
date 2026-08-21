@@ -2,9 +2,9 @@
 
 Internal monthly view of people, project allocations, and available capacity.
 
-## Run locally
+## 🚀 Run locally
 
-Requires Node.js 22.22.2 or newer, pnpm, Docker Compose, and Git.
+You need Node.js 22.22.2 or newer, pnpm, Docker Compose, and Git.
 
 ```bash
 git clone git@github.com:barbimt/studio-staffing-board.git
@@ -16,7 +16,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-If the `pnpm` command is not available, enable it with Corepack and retry:
+If `pnpm` is missing, enable it with Corepack and try again:
 
 ```bash
 corepack enable
@@ -25,35 +25,81 @@ pnpm install
 
 Open http://localhost:3000.
 
-## Import data
+## 📥 Import data
 
-Choose **Import data** and select:
+Use **Import data** and pick three files:
 
 - People CSV
 - Projects CSV
 - Leave calendar ICS
 
-All three files are imported together into PostgreSQL. A successful reimport
-replaces the current snapshot without creating duplicates. If validation fails,
-the existing data is left unchanged.
+A successful import becomes the new current snapshot. Records missing from the new files are removed.
 
-## Database
+If validation fails, the current data stays unchanged.
 
-The schema is built from the SQL migrations in `drizzle/`. After changing
-`src/server/db/schema.ts`, generate, review, and apply a new migration:
+### Sample files
+
+If you do not have studio exports yet, use the files in [`samples/`](./samples/):
+
+| File                                                         | Use for        |
+| ------------------------------------------------------------ | -------------- |
+| [`samples/people.csv`](./samples/people.csv)                 | People         |
+| [`samples/projects.csv`](./samples/projects.csv)             | Projects       |
+| [`samples/leave-calendar.ics`](./samples/leave-calendar.ics) | Leave calendar |
+
+### People CSV columns
+
+| Column          | Required | Notes                                                |
+| --------------- | -------- | ---------------------------------------------------- |
+| `Employee ID`   | Yes      | Person identity across imports                       |
+| `First Name`    | Yes      |                                                      |
+| `Last Name`     | Yes      | Matched to project `Team` names                      |
+| `Work Email`    | Yes      | Matched to calendar leave attendees                  |
+| `Department`    | Yes      |                                                      |
+| `Job Title`     | Yes      |                                                      |
+| `Site`          | Yes      | `Bristol` → UK holidays, `Porto` → Portugal holidays |
+| `FTE`           | Yes      | e.g. `1.0` or `0.8`                                  |
+| `Start Date`    | Yes      | `YYYY-MM-DD`                                         |
+| `End Date`      | No       | Leave empty if still employed                        |
+| `Manager Email` | No       |                                                      |
+
+### Projects CSV columns
+
+| Column         | Required | Notes                                                 |
+| -------------- | -------- | ----------------------------------------------------- |
+| `Name`         | Yes      | Project identity (no project ID in the source)        |
+| `Status`       | Yes      |                                                       |
+| `Client`       | Yes      |                                                       |
+| `Platform`     | Yes      | Quote values that contain commas                      |
+| `Start`        | Yes      | `YYYY-MM-DD`                                          |
+| `End`          | Yes      | `YYYY-MM-DD`, on or after `Start`                     |
+| `Team`         | Yes      | Comma-separated full names, same order as allocations |
+| `Allocation %` | Yes      | Comma-separated integers, same count as `Team`        |
+
+### Leave calendar ICS
+
+The file must be valid ICS and include `BEGIN:VCALENDAR`.
+
+- Personal leave: category `LEAVE`, attendee email matching `Work Email`
+- Public holidays: `HOLIDAY-UK` or `HOLIDAY-PT`
+- Other events may import, but they do not change capacity
+
+## 🗄️ Database
+
+Schema changes live in `drizzle/`. After editing `src/server/db/schema.ts`:
 
 ```bash
 pnpm db:generate
 pnpm db:migrate
 ```
 
-To empty imported staffing data without removing the schema:
+To clear imported staffing data without dropping the schema:
 
 ```bash
 pnpm db:reset
 ```
 
-## Checks
+## ✅ Tests and checks
 
 ```bash
 pnpm lint
@@ -63,21 +109,25 @@ pnpm test:run
 pnpm build
 ```
 
-## Notes
+## 🧰 Stack notes
 
 - Drizzle was the only part of the stack I had not used before this project.
-- Cloud Run deployment and Google Workspace authentication are outside scope.
-- Do not commit `.env` files or credentials. `.env.example` contains only safe
-  local example values.
-- Implementation choices are recorded in [DECISIONS.md](./DECISIONS.md).
-- The studio-facing announcement is in
-  [RELEASE-NOTE.md](./RELEASE-NOTE.md).
+- Cloud Run deployment and Google Workspace auth are out of scope.
+- Do not commit `.env` or credentials. `.env.example` only has safe local values.
 
-## Approximate running cost
+## 💰 Approximate running cost
 
-For a small internal deployment, Cloud Run may stay within its free tier.
-Cloud SQL would likely be the main expense. A rough starting budget is
-**USD 15–50 per month**, depending on region, database size, backups, and
-availability. Verify the chosen configuration with the
-[Google Cloud pricing calculator](https://cloud.google.com/products/calculator)
-before deployment.
+For a small internal tool with low traffic, Cloud Run should stay cheap and may
+stay near the free tier.
+
+The managed Postgres database is usually the main cost. A small Cloud SQL setup
+is often in the low tens of USD per month. Region, instance size, storage,
+backups, and availability all change that number.
+
+Check the final setup with the
+[Google Cloud pricing calculator](https://cloud.google.com/products/calculator).
+
+## 📚 Further documentation
+
+- [DECISIONS.md](./DECISIONS.md) — main product and data decisions
+- [RELEASE-NOTE.md](./RELEASE-NOTE.md) — studio-facing announcement
