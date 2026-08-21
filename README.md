@@ -4,9 +4,10 @@ Internal monthly view of people, project allocations, and available capacity.
 
 ## 🎥 Demo
 
-Short walkthrough of the board: search people, sort the list, open a person detail, edit an allocation, and return to the main page.
+Short walkthrough of the board
 
-<!-- Add your demo video below (GitHub supports dragging a .mp4 into this file, or paste a link) -->
+https://github.com/user-attachments/assets/49d47317-4e8c-4b8f-9c0e-b33bf75592d6
+
 
 ## 🚀 Run locally
 
