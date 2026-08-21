@@ -56,7 +56,7 @@ export async function getMonthlyCapacity(
         or(isNull(people.endDate), gte(people.endDate, monthStart)),
       ),
     )
-    .orderBy(asc(people.lastName), asc(people.firstName));
+    .orderBy(asc(people.firstName), asc(people.lastName));
 
   if (activePeople.length === 0) {
     return [];

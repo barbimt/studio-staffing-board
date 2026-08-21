@@ -144,11 +144,11 @@
 
 **Trade-off:** Month changes navigate and re-render the server result. Interactive table behaviour stays in a small Client Component around TanStack Table.
 
-## TanStack Table is headless and core-only
+## TanStack Table is headless with column resize and person sorting
 
-**Why:** Typed column definitions and semantic table markup, without sorting, filtering, pagination, or row selection.
+**Why:** Typed column definitions and semantic table markup. Filtering, pagination, and row selection stay off. Person is the only sortable column. The comparator is first name, then last name, matching how the cell is read and `getMonthlyCapacity`.
 
-**Trade-off:** Column sizing and resizing are registered. Person, Site, and Status are fixed width; Projects and Capacity can be resized.
+**Trade-off:** Column sizing and resizing are registered. Person, Site, and Status are fixed width; Projects and Capacity can be resized. Sort state is client-only and resets when the month changes. The first click reverses the server A–Z order.
 
 ## Person detail keeps the selected month in the URL
 

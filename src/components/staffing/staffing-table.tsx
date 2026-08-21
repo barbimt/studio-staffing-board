@@ -1,6 +1,11 @@
 "use client";
 
-import { useTable, type Header } from "@tanstack/react-table";
+import {
+  useTable,
+  type Header,
+  type SortDirection,
+} from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useMemo, type KeyboardEvent } from "react";
 
 import {
@@ -70,6 +75,25 @@ function ColumnResizeHandle({
   );
 }
 
+function SortStatusIcon({ sorted }: { sorted: false | SortDirection }) {
+  const Icon =
+    sorted === "asc" ? ArrowUp : sorted === "desc" ? ArrowDown : ArrowUpDown;
+
+  return <Icon aria-hidden="true" className="size-3 shrink-0" />;
+}
+
+function ariaSortValue(sorted: false | SortDirection) {
+  if (sorted === "asc") {
+    return "ascending";
+  }
+
+  if (sorted === "desc") {
+    return "descending";
+  }
+
+  return "none";
+}
+
 export function StaffingTable({
   month,
   people,
@@ -85,10 +109,12 @@ export function StaffingTable({
       data: people,
       getRowId: (row) => String(row.person.id),
       columnResizeMode: "onChange",
+      enableMultiSort: false,
     },
     (state) => ({
       columnSizing: state.columnSizing,
       columnResizing: state.columnResizing,
+      sorting: state.sorting,
     }),
   );
 
@@ -100,38 +126,61 @@ export function StaffingTable({
       >
         <caption className="sr-only">
           Monthly staffing for {formatMonthLabel(month)}. Activate a person row
-          to open their detail. Drag a column edge or use arrow keys to resize.
-          Double-click or Home resets a column.
+          to open their detail. Sort the Person column by first name. Drag a
+          column edge or use arrow keys to resize. Double-click or Home resets a
+          column.
         </caption>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className="border-border border-b">
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  scope="col"
-                  className="text-muted-foreground border-border relative border-r p-0 text-xs font-medium tracking-wider uppercase last:border-r-0"
-                  style={{
-                    width: header.getSize(),
-                    maxWidth: header.column.getCanResize()
-                      ? undefined
-                      : header.getSize(),
-                  }}
-                >
-                  <div className="px-4 py-3">
-                    <table.FlexRender header={header} />
-                  </div>
-                  <ColumnResizeHandle
-                    header={header}
-                    onSizeChange={(columnId, size) => {
-                      table.setColumnSizing((current) => ({
-                        ...current,
-                        [columnId]: size,
-                      }));
+              {headerGroup.headers.map((header) => {
+                const canSort = header.column.getCanSort();
+                const sorted = canSort ? header.column.getIsSorted() : false;
+
+                return (
+                  <th
+                    key={header.id}
+                    scope="col"
+                    aria-sort={canSort ? ariaSortValue(sorted) : undefined}
+                    className="text-muted-foreground border-border relative border-r p-0 text-xs font-medium tracking-wider uppercase last:border-r-0"
+                    style={{
+                      width: header.getSize(),
+                      maxWidth: header.column.getCanResize()
+                        ? undefined
+                        : header.getSize(),
                     }}
-                  />
-                </th>
-              ))}
+                  >
+                    {canSort ? (
+                      <button
+                        type="button"
+                        className={cn(
+                          "hover:text-foreground flex w-full cursor-pointer items-center gap-1 border-0 bg-transparent px-4 py-3 text-left text-xs font-medium tracking-wider uppercase",
+                          "focus-visible:ring-ring/50 outline-none focus-visible:ring-2",
+                        )}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {typeof header.column.columnDef.header === "string"
+                          ? header.column.columnDef.header
+                          : header.column.id}
+                        <SortStatusIcon sorted={sorted} />
+                      </button>
+                    ) : (
+                      <div className="px-4 py-3">
+                        <table.FlexRender header={header} />
+                      </div>
+                    )}
+                    <ColumnResizeHandle
+                      header={header}
+                      onSizeChange={(columnId, size) => {
+                        table.setColumnSizing((current) => ({
+                          ...current,
+                          [columnId]: size,
+                        }));
+                      }}
+                    />
+                  </th>
+                );
+              })}
             </tr>
           ))}
         </thead>

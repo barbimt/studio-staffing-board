@@ -2,7 +2,10 @@ import {
   columnResizingFeature,
   columnSizingFeature,
   createColumnHelper,
+  createSortedRowModel,
+  rowSortingFeature,
   tableFeatures,
+  type SortFn,
 } from "@tanstack/react-table";
 import Link from "next/link";
 
@@ -20,12 +23,30 @@ import { personDetailHref } from "@/server/capacity/month";
 export const staffingTableFeatures = tableFeatures({
   columnSizingFeature,
   columnResizingFeature,
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
 });
 
 const columnHelper = createColumnHelper<
   typeof staffingTableFeatures,
   MonthlyPersonCapacity
 >();
+
+const sortByFirstNameThenLastName: SortFn<
+  typeof staffingTableFeatures,
+  MonthlyPersonCapacity
+> = (rowA, rowB) => {
+  const first = rowA.original.person.firstName.localeCompare(
+    rowB.original.person.firstName,
+  );
+  if (first !== 0) {
+    return first;
+  }
+
+  return rowA.original.person.lastName.localeCompare(
+    rowB.original.person.lastName,
+  );
+};
 
 export function createStaffingColumns(month: string) {
   return columnHelper.columns([
@@ -35,6 +56,8 @@ export function createStaffingColumns(month: string) {
         id: "person",
         header: staffingColumnHeader.person,
         ...staffingColumnDefaults.person,
+        sortFn: sortByFirstNameThenLastName,
+        sortDescFirst: true,
         cell: ({ row }) => {
           const { id, firstName, lastName, jobTitle } = row.original.person;
           const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`;
@@ -66,6 +89,7 @@ export function createStaffingColumns(month: string) {
       id: "site",
       header: staffingColumnHeader.site,
       ...staffingColumnDefaults.site,
+      enableSorting: false,
       cell: ({ getValue }) => (
         <span className="text-muted-foreground">{getValue()}</span>
       ),
@@ -73,6 +97,7 @@ export function createStaffingColumns(month: string) {
     columnHelper.accessor("projects", {
       header: staffingColumnHeader.projects,
       ...staffingColumnDefaults.projects,
+      enableSorting: false,
       cell: ({ getValue }) => <ProjectList projects={getValue()} />,
     }),
     columnHelper.display({
@@ -91,6 +116,7 @@ export function createStaffingColumns(month: string) {
     columnHelper.accessor("status", {
       header: staffingColumnHeader.status,
       ...staffingColumnDefaults.status,
+      enableSorting: false,
       cell: ({ row }) => (
         <CapacityStatusBadge
           status={row.original.status}

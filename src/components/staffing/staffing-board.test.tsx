@@ -64,6 +64,13 @@ function person({
   };
 }
 
+function personNames() {
+  return screen
+    .getAllByRole("link")
+    .filter((link) => link.getAttribute("href")?.startsWith("/people/"))
+    .map((link) => link.textContent);
+}
+
 describe("StaffingBoard", () => {
   beforeEach(() => {
     refresh.mockReset();
@@ -243,6 +250,49 @@ describe("StaffingBoard", () => {
       "/?month=2026-10",
     );
     expect(screen.getByText("September 2026")).toBeVisible();
+  });
+
+  it("sorts people by first name then last name from the Person header", () => {
+    render(
+      <StaffingBoard
+        month="2026-09"
+        hasStaffingData
+        people={[
+          person({
+            person: { id: 1, firstName: "Ben", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 2, firstName: "Maria", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 3, firstName: "Alex", lastName: "Turner" },
+          }),
+        ]}
+      />,
+    );
+
+    const personHeader = screen.getByRole("columnheader", { name: "Person" });
+
+    expect(personHeader).toHaveAttribute("aria-sort", "none");
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
+    expect(
+      screen.queryByRole("button", { name: "Site" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+
+    expect(personHeader).toHaveAttribute("aria-sort", "descending");
+    expect(personNames()).toEqual(["Maria Costa", "Ben Costa", "Alex Turner"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+
+    expect(personHeader).toHaveAttribute("aria-sort", "ascending");
+    expect(personNames()).toEqual(["Alex Turner", "Ben Costa", "Maria Costa"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+
+    expect(personHeader).toHaveAttribute("aria-sort", "none");
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
   });
 
   it("exposes a resize control for each resizable column", () => {
