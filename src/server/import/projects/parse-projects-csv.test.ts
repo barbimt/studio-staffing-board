@@ -56,6 +56,20 @@ describe("parseProjectsCsv", () => {
     ).toThrow(/Name is duplicated/);
   });
 
+  it("treats differently cased project names as distinct", () => {
+    const csv = [
+      "Name,Status,Client,Platform,Start,End,Team,Allocation %",
+      "Alpha,Active,Bluebird,PC,2026-05-04,2026-12-18,Alex Turner,60",
+      "alpha,Active,Internal,VR,2026-06-01,2026-09-30,Maria Costa,40",
+      "",
+    ].join("\n");
+
+    const projects = parseProjectsCsv(csv);
+
+    expect(projects).toHaveLength(2);
+    expect(projects.map((project) => project.name)).toEqual(["Alpha", "alpha"]);
+  });
+
   it("rejects an End before Start", () => {
     expect(() =>
       parseProjectsCsv(readProjectsFixture("end-before-start.csv")),

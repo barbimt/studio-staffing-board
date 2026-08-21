@@ -1,27 +1,76 @@
-# 🎬 Studio Staffing Board 0.1.1
+# 🎬 Studio Staffing Board 0.1.2
 
 ## 👋 What’s new?
 
-The Studio Staffing Board is a shared monthly view of who can take on more work. It brings people, their current projects, and contractual capacity into one place so producers, artists, and leads can plan with a clearer picture of the studio.
+Need to know who can actually take on more work this month?
 
-## 📅 What can I see?
+The Studio Staffing Board brings people, projects, allocations, leave, and public holidays into one monthly view, so producers, artists, and leads do not have to piece the answer together from different files.
 
-Use the arrows at the top of the board to choose a month. For that month you’ll see each person who is employed then, together with the projects they are allocated to.
+## 📅 Pick a month, get the picture
 
-🎯 Capacity starts from contractual FTE. Full-time is 100%; part-time is scaled the same way — for example, 0.6 FTE is 60%. Leave and public holidays for that person’s studio then reduce effective capacity for the month. Project allocations are added up and shown against effective capacity, so you can see total allocation versus working capacity at a glance.
+Use the arrows at the top of the board to move between months.
 
-Each person is labelled clearly:
+For each person you can see:
 
-- **Available** — room for more work
-- **At capacity** — fully allocated
-- **Over capacity** — allocated above their effective capacity
+- what they are working on
+- how much of their time is already allocated
+- how much capacity they really have that month
+- whether they still have room for more work
 
-## 📂 Keeping the board up to date
+🎯 Capacity starts from FTE. A full-time person has 100% contractual capacity, while 0.6 FTE starts at 60%.
 
-🔄 Refresh the board by importing the latest **People**, **Projects**, and **Leave Calendar** files. A successful import replaces the previous studio snapshot. Anyone, any project, or any calendar event that is no longer in those files will leave the board.
+Leave and public holidays then reduce the capacity available that month, so someone who looks free on paper may actually have less room than expected.
 
-If an import does not go through, the last valid staffing picture stays exactly as it was. You can fix the files and try again without losing the current board.
+The board makes that easy to spot:
 
-## ⚠️ A couple of things to know
+- 🟢 **Available** — can take on more work
+- 🟡 **At capacity** — fully allocated
+- 🔴 **Over capacity** — already carrying more work than their effective capacity
 
-Public holidays only reduce capacity for people at the matching studio: Bristol uses UK holidays, Porto uses Portugal holidays. Ceremonies are shown in the calendar import but do not change the numbers.
+## 👤 Want the details?
+
+Open a person from the board to see:
+
+- their monthly capacity breakdown
+- their projects across the selected year
+- leave and public holidays for the month
+- their current allocation percentages
+
+You can also edit an existing allocation from here.
+
+Planning ahead is allowed too: future project allocations can be updated before the project starts.
+
+Over-allocation is allowed, so the board can show real planning conflicts instead of blocking them.
+
+## 📂 Keeping the board fresh
+
+Use **Import data** to load the latest:
+
+- People CSV
+- Projects CSV
+- Leave Calendar ICS
+
+A successful import becomes the new current studio snapshot.
+
+If someone, a project, or a calendar event is missing from the latest files, it is removed from the current snapshot.
+
+If something goes wrong during import, the previous valid staffing picture stays untouched. Fix the source file and try again.
+
+## 🌴 Time off matters
+
+Public holidays only reduce capacity for the matching studio:
+
+- Bristol → UK holidays
+- Porto → Portugal holidays
+
+Personal leave also reduces effective capacity.
+
+If leave and a public holiday land on the same working day, that day only counts once.
+
+Ceremonies and other non-leave calendar events can still be imported, but they do not affect staffing capacity and are not shown on the staffing views.
+
+## 🚦One thing to remember
+
+Edits made in the UI are planning changes, but the Projects CSV remains the source of truth.
+
+A later Projects import can replace those allocation edits.

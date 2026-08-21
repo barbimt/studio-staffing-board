@@ -2,7 +2,7 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** node-ical stores VALUE=DATE as a local-midnight Date with dateOnly; local getters are the ICS day. */
+/** All-day ICS dates from node-ical: use local Y/M/D, not UTC (UTC can shift the day). */
 export function allDayCalendarDate(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 }

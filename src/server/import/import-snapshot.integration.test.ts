@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { asc, eq } from "drizzle-orm";
 
 import { getMonthlyCapacity } from "@/server/capacity/get-monthly-capacity";
+import { updateAssignmentAllocation } from "@/server/capacity/update-assignment-allocation";
 import {
   assignments,
   calendarEventOccurrences,
@@ -293,6 +294,53 @@ describe.skipIf(!testDatabaseUrl)("import snapshot reconciliation", () => {
     ]);
   });
 
+  it("overwrites a manual allocation edit with the next Projects snapshot", async () => {
+    await importStudioData(db, {
+      peopleCsv: threePeople,
+      projectsCsv: orchardAndLantern,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const [alexAssignment] = await db
+      .select({
+        assignmentId: assignments.id,
+        personId: assignments.personId,
+      })
+      .from(assignments)
+      .innerJoin(people, eq(assignments.personId, people.id))
+      .innerJoin(projects, eq(assignments.projectId, projects.id))
+      .where(eq(people.employeeId, alex.employeeId));
+
+    expect(alexAssignment).toBeDefined();
+
+    await updateAssignmentAllocation(db, {
+      assignmentId: alexAssignment!.assignmentId,
+      personId: alexAssignment!.personId,
+      month: "2026-09",
+      allocationPercentage: 90,
+    });
+
+    const [edited] = await db
+      .select({ allocationPercentage: assignments.allocationPercentage })
+      .from(assignments)
+      .where(eq(assignments.id, alexAssignment!.assignmentId));
+
+    expect(edited?.allocationPercentage).toBe(90);
+
+    await importStudioData(db, {
+      peopleCsv: threePeople,
+      projectsCsv: orchardAndLantern,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const [reimported] = await db
+      .select({ allocationPercentage: assignments.allocationPercentage })
+      .from(assignments)
+      .where(eq(assignments.id, alexAssignment!.assignmentId));
+
+    expect(reimported?.allocationPercentage).toBe(50);
+  });
+
   it("removes calendar events missing from the latest ICS and their occurrences", async () => {
     await importStudioData(db, {
       peopleCsv: twoPeople,
@@ -536,6 +584,42 @@ describe.skipIf(!testDatabaseUrl)("import snapshot reconciliation", () => {
     expect(names).toEqual(["Sept Start"]);
     expect(september[0]?.projects).toEqual([
       expect.objectContaining({ name: "Boundary", allocationPercentage: 40 }),
+    ]);
+  });
+
+  it("does not prorate capacity for a mid-month start or end", async () => {
+    const midMonthPeople = [
+      peopleHeader,
+      "E010,Midmonth,Starter,starter@example.com,Engineering,Developer,Bristol,1.0,2026-09-15,,",
+      "E011,Midmonth,Leaver,leaver@example.com,Engineering,Developer,Bristol,1.0,2026-01-01,2026-09-15,",
+    ].join("\n");
+
+    await importStudioData(db, {
+      peopleCsv: midMonthPeople,
+      projectsCsv: projectsHeader,
+      calendarIcs: emptyHolidayCalendar,
+    });
+
+    const september = await getMonthlyCapacity(db, "2026-09");
+
+    expect(september).toHaveLength(2);
+    expect(
+      september.map((row) => ({
+        name: `${row.person.firstName} ${row.person.lastName}`,
+        contractualCapacityPercentage: row.contractualCapacityPercentage,
+        effectiveCapacityPercentage: row.effectiveCapacityPercentage,
+      })),
+    ).toEqual([
+      {
+        name: "Midmonth Leaver",
+        contractualCapacityPercentage: 100,
+        effectiveCapacityPercentage: 100,
+      },
+      {
+        name: "Midmonth Starter",
+        contractualCapacityPercentage: 100,
+        effectiveCapacityPercentage: 100,
+      },
     ]);
   });
 

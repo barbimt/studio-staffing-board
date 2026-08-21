@@ -114,7 +114,7 @@ export function parsePersonId(raw: string): number | null {
   return id;
 }
 
-/** True when the project finished before the first day of `month` (YYYY-MM). */
+/** True if the project ended before this month (YYYY-MM) starts. */
 export function projectEndedBeforeMonth(
   projectEndDate: string,
   month: string,

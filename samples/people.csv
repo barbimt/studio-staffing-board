@@ -1,0 +1,5 @@
+Employee ID,First Name,Last Name,Work Email,Department,Job Title,Site,FTE,Start Date,End Date,Manager Email
+E001,Hannah,Whitmore,hannah.whitmore@example.com,Studio,Studio Director,Bristol,1.0,2021-03-01,,
+E002,Alex,Turner,alex.turner@example.com,Engineering,Lead Developer,Bristol,1.0,2022-06-13,,hannah.whitmore@example.com
+E003,Maria,Costa,maria.costa@example.com,Engineering,Developer,Porto,0.8,2023-02-01,,alex.turner@example.com
+E004,Samuel,Adeyemi,samuel.adeyemi@example.com,Art,Artist,Bristol,1.0,2024-01-08,,hannah.whitmore@example.com

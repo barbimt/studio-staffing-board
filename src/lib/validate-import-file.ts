@@ -39,18 +39,6 @@ function columnsFromLabels(labels: readonly string[]) {
   }));
 }
 
-export const MAX_VISIBLE_IMPORT_ERRORS = 8;
-
-export function visibleImportErrors(messages: string[]): {
-  shown: string[];
-  remaining: number;
-} {
-  return {
-    shown: messages.slice(0, MAX_VISIBLE_IMPORT_ERRORS),
-    remaining: Math.max(0, messages.length - MAX_VISIBLE_IMPORT_ERRORS),
-  };
-}
-
 function firstLine(text: string): string {
   return (
     text

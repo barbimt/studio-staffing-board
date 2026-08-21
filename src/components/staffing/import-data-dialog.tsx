@@ -29,7 +29,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   hasStudioImportErrors,
   parseStudioImportResult,
@@ -38,7 +37,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   validateSelectedImportFile,
-  visibleImportErrors,
   type ImportFieldIssue,
   type ImportSource,
 } from "@/lib/validate-import-file";
@@ -89,6 +87,47 @@ const emptyChecking: Record<ImportSource, boolean> = {
   projects: false,
   calendar: false,
 };
+
+const COLLAPSED_IMPORT_ERROR_COUNT = 3;
+
+function ImportSourceErrorList({
+  heading,
+  messages,
+}: {
+  heading: string;
+  messages: string[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hiddenCount = messages.length - COLLAPSED_IMPORT_ERROR_COUNT;
+  const shown =
+    expanded || hiddenCount <= 0
+      ? messages
+      : messages.slice(0, COLLAPSED_IMPORT_ERROR_COUNT);
+
+  return (
+    <div className="mt-3 first:mt-0">
+      <p className="text-foreground font-medium">{heading}</p>
+      <ul className="mt-1 list-disc pl-4">
+        {shown.map((message) => (
+          <li key={message}>{message}</li>
+        ))}
+      </ul>
+      {hiddenCount > 0 ? (
+        <Button
+          type="button"
+          variant="link"
+          size="xs"
+          className="text-destructive h-auto px-0"
+          onClick={() => setExpanded((value) => !value)}
+        >
+          {expanded
+            ? "Show fewer issues"
+            : `Show ${hiddenCount} more ${hiddenCount === 1 ? "issue" : "issues"}`}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 export function ImportDataDialog({
   hasStaffingData,
@@ -263,7 +302,7 @@ export function ImportDataDialog({
                       {showServerErrors ? (
                         <>
                           <p>Fix the issues below and try again.</p>
-                          <ScrollArea className="mt-3 h-48 pr-3">
+                          <div className="mt-3 max-h-48 overflow-y-auto overscroll-contain pr-3">
                             {fields.map((field) => {
                               const messages = serverErrors[field.source];
 
@@ -271,32 +310,15 @@ export function ImportDataDialog({
                                 return null;
                               }
 
-                              const { shown, remaining } =
-                                visibleImportErrors(messages);
-
                               return (
-                                <div
+                                <ImportSourceErrorList
                                   key={field.source}
-                                  className="mt-3 first:mt-0"
-                                >
-                                  <p className="text-foreground font-medium">
-                                    {field.heading}
-                                  </p>
-                                  <ul className="mt-1 list-disc pl-4">
-                                    {shown.map((message) => (
-                                      <li key={message}>{message}</li>
-                                    ))}
-                                  </ul>
-                                  {remaining > 0 ? (
-                                    <p className="mt-1">
-                                      and {remaining} more{" "}
-                                      {remaining === 1 ? "issue" : "issues"}
-                                    </p>
-                                  ) : null}
-                                </div>
+                                  heading={field.heading}
+                                  messages={messages}
+                                />
                               );
                             })}
-                          </ScrollArea>
+                          </div>
                         </>
                       ) : (
                         <p>The import failed. Try again.</p>

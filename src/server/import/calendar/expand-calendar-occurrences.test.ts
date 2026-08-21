@@ -82,4 +82,13 @@ describe("expandCalendarOccurrences", () => {
       standupMondays.slice(0, 6),
     );
   });
+
+  it("expands a recurrence bounded only by COUNT", () => {
+    const [event] = parseCalendar(readCalendarFixture("standup-count.ics"));
+
+    expect(event.occurrences).toHaveLength(3);
+    expect(event.occurrences.map((occurrence) => occurrence.startDate)).toEqual(
+      standupMondays.slice(0, 3),
+    );
+  });
 });
