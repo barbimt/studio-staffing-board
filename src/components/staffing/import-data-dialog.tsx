@@ -29,7 +29,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "@/components/ui/field";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   hasStudioImportErrors,
   parseStudioImportResult,
@@ -263,7 +262,7 @@ export function ImportDataDialog({
                       {showServerErrors ? (
                         <>
                           <p>Fix the issues below and try again.</p>
-                          <ScrollArea className="mt-3 h-48 pr-3">
+                          <div className="mt-3 max-h-48 overflow-y-auto pr-3">
                             {fields.map((field) => {
                               const messages = serverErrors[field.source];
 
@@ -296,7 +295,7 @@ export function ImportDataDialog({
                                 </div>
                               );
                             })}
-                          </ScrollArea>
+                          </div>
                         </>
                       ) : (
                         <p>The import failed. Try again.</p>
