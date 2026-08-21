@@ -130,7 +130,7 @@
 
 **Why:** The source supplies allocation independently from status (`Active`, `Complete`, `On hold`). Core capacity uses project date overlap only.
 
-**Trade-off:** An On hold or Complete project that overlaps the month still contributes its assignment percentages. Status is stored and shown; it does not change the numbers.
+**Trade-off:** An On hold or Complete project that overlaps the month still contributes its assignment percentages. Status is stored and returned with person assignment data, but it is not currently shown in the UI and does not change the numbers.
 
 ## Selected month lives in the URL
 
@@ -168,11 +168,11 @@
 
 **Trade-off:** There is still no local-beats-import layer. The person page does not repeat the import-overwrite warning beside every Edit control.
 
-## Ended projects cannot be edited from the selected month
+## Ended projects cannot be edited; future projects can
 
-**Why:** On person detail, Edit is disabled when the project `endDate` is before the first day of the selected month. `updateAssignmentAllocation` enforces the same rule with the submitted `month`, so a hand-posted form cannot change allocation on work that has already finished relative to that month.
+**Why:** On person detail, Edit is disabled when the project `endDate` is before the first day of the selected month. `updateAssignmentAllocation` enforces the same rule with the submitted `month`, so a hand-posted form cannot change allocation on work that has already finished relative to that month. Editing remains enabled when the project overlaps the selected month or starts after it, allowing producers to plan future staffing in advance.
 
-**Trade-off:** Mid-month endings stay editable while the selected month overlaps the project. Posting a different earlier `month` is equivalent to navigating to that month in the UI.
+**Trade-off:** Mid-month endings stay editable while the selected month overlaps the project. A future project's allocation can be edited from an earlier selected month, but it does not contribute to that month's capacity until the project date range overlaps the month. Posting a different earlier `month` is equivalent to navigating to that month in the UI.
 
 ## Person time off is a monthly HTML timeline, not a Gantt
 
@@ -182,7 +182,7 @@
 
 ## Person leave labels drop the ICS name suffix
 
-**Why:** Calendar summaries often look like `Annual Leave - Wei Chen`. On that person's page the name is already in the header, so `leaveLabelFromSummary` removes a trailing ` - {firstName} {lastName}` when it matches. Holiday summaries stay unchanged.
+**Why:** Calendar summaries often look like `Annual Leave - Wei Chen`. On that person's page the name is already in the header, so `leaveLabelFromSummary` removes a trailing `- {firstName} {lastName}` when it matches. Holiday summaries stay unchanged.
 
 **Trade-off:** A leave title that ends with a different person's name is left as stored. Matching is case-insensitive on the suffix only.
 
