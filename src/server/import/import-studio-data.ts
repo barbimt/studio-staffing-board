@@ -25,16 +25,38 @@ export class StudioImportError extends Error {
   }
 }
 
-function messagesFrom(error: unknown): string[] | undefined {
-  if (
-    error instanceof PeopleImportError ||
-    error instanceof ProjectsImportError ||
-    error instanceof CalendarImportError
-  ) {
-    return error.messages;
+type SourceKey = keyof StudioImportSourceErrors;
+
+function sourceFrom(
+  error: unknown,
+): { key: SourceKey; messages: string[] } | undefined {
+  if (error instanceof PeopleImportError) {
+    return { key: "people", messages: error.messages };
+  }
+
+  if (error instanceof ProjectsImportError) {
+    return { key: "projects", messages: error.messages };
+  }
+
+  if (error instanceof CalendarImportError) {
+    return { key: "calendar", messages: error.messages };
   }
 
   return undefined;
+}
+
+function tryParse<T>(
+  errors: StudioImportSourceErrors,
+  key: SourceKey,
+  fallback: string,
+  parse: () => T,
+): T | undefined {
+  try {
+    return parse();
+  } catch (error) {
+    errors[key] = sourceFrom(error)?.messages ?? [fallback];
+    return undefined;
+  }
 }
 
 export async function importStudioData(
@@ -46,27 +68,25 @@ export async function importStudioData(
   },
 ): Promise<void> {
   const errors: StudioImportSourceErrors = {};
-  let peopleRecords;
-  let projectRecords;
-  let calendarRecords;
 
-  try {
-    peopleRecords = parsePeopleCsv(sources.peopleCsv);
-  } catch (error) {
-    errors.people = messagesFrom(error) ?? ["People file is invalid"];
-  }
-
-  try {
-    projectRecords = parseProjectsCsv(sources.projectsCsv);
-  } catch (error) {
-    errors.projects = messagesFrom(error) ?? ["Projects file is invalid"];
-  }
-
-  try {
-    calendarRecords = parseCalendar(sources.calendarIcs);
-  } catch (error) {
-    errors.calendar = messagesFrom(error) ?? ["Leave calendar file is invalid"];
-  }
+  const peopleRecords = tryParse(
+    errors,
+    "people",
+    "People file is invalid",
+    () => parsePeopleCsv(sources.peopleCsv),
+  );
+  const projectRecords = tryParse(
+    errors,
+    "projects",
+    "Projects file is invalid",
+    () => parseProjectsCsv(sources.projectsCsv),
+  );
+  const calendarRecords = tryParse(
+    errors,
+    "calendar",
+    "Leave calendar file is invalid",
+    () => parseCalendar(sources.calendarIcs),
+  );
 
   if (
     hasStudioImportErrors(errors) ||
@@ -84,16 +104,9 @@ export async function importStudioData(
       await importCalendar(tx, calendarRecords);
     });
   } catch (error) {
-    if (error instanceof PeopleImportError) {
-      throw new StudioImportError({ people: error.messages });
-    }
-
-    if (error instanceof ProjectsImportError) {
-      throw new StudioImportError({ projects: error.messages });
-    }
-
-    if (error instanceof CalendarImportError) {
-      throw new StudioImportError({ calendar: error.messages });
+    const source = sourceFrom(error);
+    if (source) {
+      throw new StudioImportError({ [source.key]: source.messages });
     }
 
     throw error;

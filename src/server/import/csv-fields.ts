@@ -2,11 +2,29 @@ import { z } from "zod";
 
 import { normalizeEmail } from "./normalize-email";
 
-export function requiredString(field: string) {
+function requiredNormalized(
+  field: string,
+  normalize: (value: string) => string,
+) {
   return z
     .string({ error: `${field} is required` })
-    .transform((value) => value.trim())
+    .transform(normalize)
     .refine((value) => value.length > 0, { error: `${field} is required` });
+}
+
+function optionalNormalized(normalize: (value: string) => string) {
+  return z.union([z.string(), z.undefined()]).transform((value) => {
+    if (value == null) {
+      return null;
+    }
+
+    const normalized = normalize(value);
+    return normalized === "" ? null : normalized;
+  });
+}
+
+export function requiredString(field: string) {
+  return requiredNormalized(field, (value) => value.trim());
 }
 
 export function requiredDate(field: string) {
@@ -16,37 +34,19 @@ export function requiredDate(field: string) {
 }
 
 export function optionalDate(field: string) {
-  return z
-    .union([z.string(), z.undefined()])
-    .transform((value) => {
-      if (value == null) {
-        return null;
-      }
-
-      const trimmed = value.trim();
-      return trimmed === "" ? null : trimmed;
-    })
-    .pipe(z.iso.date({ error: `${field} is invalid` }).nullable());
+  return optionalNormalized((value) => value.trim()).pipe(
+    z.iso.date({ error: `${field} is invalid` }).nullable(),
+  );
 }
 
 export function requiredEmail(field: string) {
-  return z
-    .string({ error: `${field} is required` })
-    .transform((value) => normalizeEmail(value))
-    .refine((value) => value.length > 0, { error: `${field} is required` })
-    .pipe(z.email({ error: `${field} is invalid` }));
+  return requiredNormalized(field, normalizeEmail).pipe(
+    z.email({ error: `${field} is invalid` }),
+  );
 }
 
 export function optionalEmail(field: string) {
-  return z
-    .union([z.string(), z.undefined()])
-    .transform((value) => {
-      if (value == null) {
-        return null;
-      }
-
-      const trimmed = normalizeEmail(value);
-      return trimmed === "" ? null : trimmed;
-    })
-    .pipe(z.email({ error: `${field} is invalid` }).nullable());
+  return optionalNormalized(normalizeEmail).pipe(
+    z.email({ error: `${field} is invalid` }).nullable(),
+  );
 }
