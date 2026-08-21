@@ -218,7 +218,7 @@ describe("ImportDataDialog", () => {
     expect(submitButton()).toBeDisabled();
   });
 
-  it("scrolls long server errors and summarizes extra issues", async () => {
+  it("shows three server errors then expands the rest in a scrollable list", async () => {
     vi.mocked(fetch).mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -243,10 +243,22 @@ describe("ImportDataDialog", () => {
       await screen.findByText("We couldn't import the studio data."),
     ).toBeVisible();
     expect(screen.getByText("Row 2: Name is required")).toBeVisible();
-    expect(screen.getByText("and 4 more issues")).toBeVisible();
+    expect(screen.getByText("Row 4: Name is required")).toBeVisible();
     expect(
-      screen.queryByText("Row 12: Name is required"),
+      screen.queryByText("Row 5: Name is required"),
     ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 9 more issues" }));
+
+    expect(screen.getByText("Row 13: Name is required")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Show fewer issues" }),
+    ).toBeVisible();
+
+    const errorList = screen
+      .getByText("Row 2: Name is required")
+      .closest(".overflow-y-auto");
+    expect(errorList).toHaveClass("max-h-48");
   });
 
   it("lets the user replace one file and retry after a failure", async () => {
