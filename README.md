@@ -8,7 +8,6 @@ Short walkthrough of the board
 
 https://github.com/user-attachments/assets/49d47317-4e8c-4b8f-9c0e-b33bf75592d6
 
-
 ## 🚀 Run locally
 
 You need Node.js 22.22.2 or newer, pnpm, Docker Compose, and Git.
