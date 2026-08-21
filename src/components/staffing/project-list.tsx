@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { projectAccentColor } from "@/lib/project-accent";
 import type { CapacityProject } from "@/server/capacity/calculate-capacity";
 
 export function ProjectList({ projects }: { projects: CapacityProject[] }) {
@@ -14,7 +15,7 @@ export function ProjectList({ projects }: { projects: CapacityProject[] }) {
             <span
               className="size-1.5 shrink-0 rounded-full"
               style={{
-                backgroundColor: `oklch(0.55 0.14 ${(project.id * 137.508) % 360})`,
+                backgroundColor: projectAccentColor(project.id),
               }}
               aria-hidden="true"
             />

@@ -2,6 +2,7 @@ import { Import } from "lucide-react";
 
 import { ImportDataDialog } from "@/components/staffing/import-data-dialog";
 import { MonthSwitcher } from "@/components/staffing/month-switcher";
+import { StaffingBoardHeading } from "@/components/staffing/staffing-board-heading";
 import { StaffingEmptyState } from "@/components/staffing/staffing-empty-state";
 import { StaffingTable } from "@/components/staffing/staffing-table";
 import { Button } from "@/components/ui/button";
@@ -19,12 +20,7 @@ export function StaffingBoard({
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Studio Staffing Board
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Can this person take on more work this month?
-        </p>
+        <StaffingBoardHeading />
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <MonthSwitcher month={month} />
           {hasStaffingData ? (

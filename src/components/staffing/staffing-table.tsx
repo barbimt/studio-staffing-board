@@ -1,10 +1,10 @@
 "use client";
 
 import { useTable, type Header } from "@tanstack/react-table";
-import { type KeyboardEvent } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 
 import {
-  staffingColumns,
+  createStaffingColumns,
   staffingTableFeatures,
 } from "@/components/staffing/staffing-columns";
 import { Card } from "@/components/ui/card";
@@ -77,10 +77,11 @@ export function StaffingTable({
   month: string;
   people: MonthlyPersonCapacity[];
 }) {
+  const columns = useMemo(() => createStaffingColumns(month), [month]);
   const table = useTable(
     {
       features: staffingTableFeatures,
-      columns: staffingColumns,
+      columns,
       data: people,
       getRowId: (row) => String(row.person.id),
       columnResizeMode: "onChange",
@@ -98,8 +99,9 @@ export function StaffingTable({
         style={{ minWidth: table.getTotalSize() }}
       >
         <caption className="sr-only">
-          Monthly staffing for {formatMonthLabel(month)}. Drag a column edge or
-          use arrow keys to resize. Double-click or Home resets a column.
+          Monthly staffing for {formatMonthLabel(month)}. Activate a person row
+          to open their detail. Drag a column edge or use arrow keys to resize.
+          Double-click or Home resets a column.
         </caption>
         <thead>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -137,7 +139,7 @@ export function StaffingTable({
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
-              className="border-border/80 border-b align-middle last:border-b-0"
+              className="border-border/80 hover:bg-muted/50 relative border-b align-middle last:border-b-0"
             >
               {row.getAllCells().map((cell) => (
                 <td

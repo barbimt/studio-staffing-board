@@ -36,7 +36,9 @@ function person({
   person: personFields,
   projects,
   ...rest
-}: Partial<MonthlyPersonCapacity> = {}): MonthlyPersonCapacity {
+}: Omit<Partial<MonthlyPersonCapacity>, "person"> & {
+  person?: Partial<MonthlyPersonCapacity["person"]>;
+} = {}): MonthlyPersonCapacity {
   return {
     person: {
       id: 1,
@@ -77,6 +79,13 @@ describe("StaffingBoard", () => {
       screen.getByRole("heading", { name: "Studio Staffing Board" }),
     ).toBeVisible();
     expect(screen.getByText("Alex Turner")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Alex Turner" })).toHaveAttribute(
+      "href",
+      "/people/1?month=2026-09",
+    );
+    expect(screen.getAllByRole("link", { name: "Alex Turner" })).toHaveLength(
+      1,
+    );
     expect(screen.getByText("Lead Developer")).toBeVisible();
     expect(screen.getByText("Bristol")).toBeVisible();
     expect(screen.getByText("Orchard Grove 60%")).toBeVisible();
