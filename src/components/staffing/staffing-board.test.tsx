@@ -295,6 +295,45 @@ describe("StaffingBoard", () => {
     expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
   });
 
+  it("filters people by first or last name", () => {
+    render(
+      <StaffingBoard
+        month="2026-09"
+        hasStaffingData
+        people={[
+          person({
+            person: { id: 1, firstName: "Ben", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 2, firstName: "Maria", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 3, firstName: "Alex", lastName: "Turner" },
+          }),
+        ]}
+      />,
+    );
+
+    const search = screen.getByRole("searchbox", { name: "Search people" });
+
+    fireEvent.change(search, { target: { value: "maria" } });
+    expect(personNames()).toEqual(["Maria Costa"]);
+
+    fireEvent.change(search, { target: { value: "costa" } });
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa"]);
+
+    fireEvent.change(search, { target: { value: "zzz" } });
+    expect(personNames()).toEqual([]);
+    expect(screen.getByText("No people match that name")).toBeVisible();
+    expect(search).toHaveValue("zzz");
+
+    fireEvent.change(search, { target: { value: "" } });
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
+    expect(
+      screen.queryByText("No people match that name"),
+    ).not.toBeInTheDocument();
+  });
+
   it("exposes a resize control for each resizable column", () => {
     render(
       <StaffingBoard month="2026-09" hasStaffingData people={[person()]} />,
