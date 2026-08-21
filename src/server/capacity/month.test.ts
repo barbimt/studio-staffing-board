@@ -8,6 +8,9 @@ import {
   resolveYearMonth,
   shiftYearMonth,
   staffingMonthHref,
+  parsePersonId,
+  personDetailHref,
+  projectEndedBeforeMonth,
 } from "./month";
 
 describe("parseYearMonth", () => {
@@ -62,5 +65,33 @@ describe("month presentation", () => {
 
   it("builds the month query href", () => {
     expect(staffingMonthHref("2026-08")).toBe("/?month=2026-08");
+  });
+
+  it("builds a person detail href that keeps the month", () => {
+    expect(personDetailHref(12, "2026-09")).toBe("/people/12?month=2026-09");
+  });
+});
+
+describe("parsePersonId", () => {
+  it("accepts positive integer ids", () => {
+    expect(parsePersonId("12")).toBe(12);
+  });
+
+  it("rejects non-numeric and non-positive ids", () => {
+    expect(parsePersonId("abc")).toBeNull();
+    expect(parsePersonId("0")).toBeNull();
+    expect(parsePersonId("12.5")).toBeNull();
+    expect(parsePersonId("-1")).toBeNull();
+  });
+});
+
+describe("projectEndedBeforeMonth", () => {
+  it("is true when the project ended before the month starts", () => {
+    expect(projectEndedBeforeMonth("2026-10-18", "2026-11")).toBe(true);
+  });
+
+  it("is false when the project still overlaps the month", () => {
+    expect(projectEndedBeforeMonth("2026-10-18", "2026-10")).toBe(false);
+    expect(projectEndedBeforeMonth("2026-10-18", "2026-09")).toBe(false);
   });
 });

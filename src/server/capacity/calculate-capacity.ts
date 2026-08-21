@@ -1,4 +1,13 @@
-export type CapacityStatus = "available" | "at_capacity" | "overcommitted";
+import {
+  calculateCapacityStatus,
+  calculateContractualCapacityPercentage,
+  calculateEffectiveCapacityPercentage,
+  calculateTotalAllocation,
+  roundCapacityPercentage,
+  type CapacityStatus,
+} from "./capacity-math";
+
+export type { CapacityStatus };
 
 export type MonthBounds = {
   monthStart: string;
@@ -32,6 +41,14 @@ export type MonthlyPersonCapacity = {
   status: CapacityStatus;
 };
 
+export {
+  calculateCapacityStatus,
+  calculateContractualCapacityPercentage,
+  calculateEffectiveCapacityPercentage,
+  calculateTotalAllocation,
+  roundCapacityPercentage,
+} from "./capacity-math";
+
 export function isPersonActiveInMonth(
   person: { startDate: string; endDate: string | null },
   month: MonthBounds,
@@ -51,59 +68,14 @@ export function isProjectActiveInMonth(
   );
 }
 
-export function calculateContractualCapacityPercentage(fte: number): number {
-  return fte * 100;
-}
-
-export function roundCapacityPercentage(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-export function calculateEffectiveCapacityPercentage({
-  contractualCapacityPercentage,
-  workingDayCount,
-  unavailableWeekdays,
-}: {
-  contractualCapacityPercentage: number;
-  workingDayCount: number;
-  unavailableWeekdays: number;
-}): number {
-  if (unavailableWeekdays === 0) {
-    return contractualCapacityPercentage;
-  }
-
-  const availableDays = workingDayCount - unavailableWeekdays;
-
-  return roundCapacityPercentage(
-    (availableDays / workingDayCount) * contractualCapacityPercentage,
+export function isRangeActiveInYear(
+  range: { startDate: string; endDate: string },
+  yearBounds: { yearStart: string; yearEnd: string },
+): boolean {
+  return (
+    range.startDate <= yearBounds.yearEnd &&
+    range.endDate >= yearBounds.yearStart
   );
-}
-
-export function calculateTotalAllocation(
-  assignments: { allocationPercentage: number }[],
-): number {
-  return assignments.reduce(
-    (total, assignment) => total + assignment.allocationPercentage,
-    0,
-  );
-}
-
-export function calculateCapacityStatus({
-  effectiveCapacityPercentage,
-  totalAllocationPercentage,
-}: {
-  effectiveCapacityPercentage: number;
-  totalAllocationPercentage: number;
-}): CapacityStatus {
-  if (totalAllocationPercentage < effectiveCapacityPercentage) {
-    return "available";
-  }
-
-  if (totalAllocationPercentage === effectiveCapacityPercentage) {
-    return "at_capacity";
-  }
-
-  return "overcommitted";
 }
 
 export function buildMonthlyPersonCapacity(

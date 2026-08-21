@@ -4,6 +4,8 @@ import {
 } from "@/lib/import-result";
 import {
   importFieldIssueMessages,
+  type ImportFieldIssue,
+  type ImportSource,
   validateImportContents,
   validateImportFile,
 } from "@/lib/validate-import-file";
@@ -13,14 +15,13 @@ import {
   StudioImportError,
 } from "@/server/import/import-studio-data";
 
+const importSources = ["people", "projects", "calendar"] as const;
+
 function jsonError(errors: StudioImportSourceErrors, status: number) {
   return Response.json({ ok: false, errors }, { status });
 }
 
-function fileFromForm(
-  formData: FormData,
-  field: "people" | "projects" | "calendar",
-): File | null {
+function fileFromForm(formData: FormData, field: ImportSource): File | null {
   const value = formData.get(field);
 
   if (value instanceof File) {
@@ -28,6 +29,23 @@ function fileFromForm(
   }
 
   return null;
+}
+
+function collectImportErrors<T>(
+  values: Record<ImportSource, T>,
+  validate: (value: T, source: ImportSource) => ImportFieldIssue | undefined,
+): StudioImportSourceErrors {
+  const errors: StudioImportSourceErrors = {};
+
+  for (const source of importSources) {
+    const issue = validate(values[source], source);
+
+    if (issue) {
+      errors[source] = importFieldIssueMessages(issue);
+    }
+  }
+
+  return errors;
 }
 
 export async function POST(request: Request) {
@@ -43,25 +61,13 @@ export async function POST(request: Request) {
   const projects = fileFromForm(formData, "projects");
   const calendar = fileFromForm(formData, "calendar");
 
-  const errors: StudioImportSourceErrors = {};
-  const peopleError = validateImportFile(people, "people");
-  const projectsError = validateImportFile(projects, "projects");
-  const calendarError = validateImportFile(calendar, "calendar");
+  const fileErrors = collectImportErrors(
+    { people, projects, calendar },
+    validateImportFile,
+  );
 
-  if (peopleError) {
-    errors.people = importFieldIssueMessages(peopleError);
-  }
-
-  if (projectsError) {
-    errors.projects = importFieldIssueMessages(projectsError);
-  }
-
-  if (calendarError) {
-    errors.calendar = importFieldIssueMessages(calendarError);
-  }
-
-  if (hasStudioImportErrors(errors) || !people || !projects || !calendar) {
-    return jsonError(errors, 400);
+  if (hasStudioImportErrors(fileErrors) || !people || !projects || !calendar) {
+    return jsonError(fileErrors, 400);
   }
 
   const [peopleCsv, projectsCsv, calendarIcs] = await Promise.all([
@@ -70,24 +76,17 @@ export async function POST(request: Request) {
     calendar.text(),
   ]);
 
-  const peopleContentError = validateImportContents(peopleCsv, "people");
-  const projectsContentError = validateImportContents(projectsCsv, "projects");
-  const calendarContentError = validateImportContents(calendarIcs, "calendar");
+  const contentErrors = collectImportErrors(
+    {
+      people: peopleCsv,
+      projects: projectsCsv,
+      calendar: calendarIcs,
+    },
+    validateImportContents,
+  );
 
-  if (peopleContentError) {
-    errors.people = importFieldIssueMessages(peopleContentError);
-  }
-
-  if (projectsContentError) {
-    errors.projects = importFieldIssueMessages(projectsContentError);
-  }
-
-  if (calendarContentError) {
-    errors.calendar = importFieldIssueMessages(calendarContentError);
-  }
-
-  if (hasStudioImportErrors(errors)) {
-    return jsonError(errors, 400);
+  if (hasStudioImportErrors(contentErrors)) {
+    return jsonError(contentErrors, 400);
   }
 
   try {

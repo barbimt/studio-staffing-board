@@ -36,7 +36,9 @@ function person({
   person: personFields,
   projects,
   ...rest
-}: Partial<MonthlyPersonCapacity> = {}): MonthlyPersonCapacity {
+}: Omit<Partial<MonthlyPersonCapacity>, "person"> & {
+  person?: Partial<MonthlyPersonCapacity["person"]>;
+} = {}): MonthlyPersonCapacity {
   return {
     person: {
       id: 1,
@@ -62,6 +64,13 @@ function person({
   };
 }
 
+function personNames() {
+  return screen
+    .getAllByRole("link")
+    .filter((link) => link.getAttribute("href")?.startsWith("/people/"))
+    .map((link) => link.textContent);
+}
+
 describe("StaffingBoard", () => {
   beforeEach(() => {
     refresh.mockReset();
@@ -77,6 +86,13 @@ describe("StaffingBoard", () => {
       screen.getByRole("heading", { name: "Studio Staffing Board" }),
     ).toBeVisible();
     expect(screen.getByText("Alex Turner")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Alex Turner" })).toHaveAttribute(
+      "href",
+      "/people/1?month=2026-09",
+    );
+    expect(screen.getAllByRole("link", { name: "Alex Turner" })).toHaveLength(
+      1,
+    );
     expect(screen.getByText("Lead Developer")).toBeVisible();
     expect(screen.getByText("Bristol")).toBeVisible();
     expect(screen.getByText("Orchard Grove 60%")).toBeVisible();
@@ -234,6 +250,88 @@ describe("StaffingBoard", () => {
       "/?month=2026-10",
     );
     expect(screen.getByText("September 2026")).toBeVisible();
+  });
+
+  it("sorts people by first name then last name from the Person header", () => {
+    render(
+      <StaffingBoard
+        month="2026-09"
+        hasStaffingData
+        people={[
+          person({
+            person: { id: 1, firstName: "Ben", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 2, firstName: "Maria", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 3, firstName: "Alex", lastName: "Turner" },
+          }),
+        ]}
+      />,
+    );
+
+    const personHeader = screen.getByRole("columnheader", { name: "Person" });
+
+    expect(personHeader).toHaveAttribute("aria-sort", "none");
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
+    expect(
+      screen.queryByRole("button", { name: "Site" }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+
+    expect(personHeader).toHaveAttribute("aria-sort", "descending");
+    expect(personNames()).toEqual(["Maria Costa", "Ben Costa", "Alex Turner"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+
+    expect(personHeader).toHaveAttribute("aria-sort", "ascending");
+    expect(personNames()).toEqual(["Alex Turner", "Ben Costa", "Maria Costa"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Person" }));
+
+    expect(personHeader).toHaveAttribute("aria-sort", "none");
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
+  });
+
+  it("filters people by first or last name", () => {
+    render(
+      <StaffingBoard
+        month="2026-09"
+        hasStaffingData
+        people={[
+          person({
+            person: { id: 1, firstName: "Ben", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 2, firstName: "Maria", lastName: "Costa" },
+          }),
+          person({
+            person: { id: 3, firstName: "Alex", lastName: "Turner" },
+          }),
+        ]}
+      />,
+    );
+
+    const search = screen.getByRole("searchbox", { name: "Search people" });
+
+    fireEvent.change(search, { target: { value: "maria" } });
+    expect(personNames()).toEqual(["Maria Costa"]);
+
+    fireEvent.change(search, { target: { value: "costa" } });
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa"]);
+
+    fireEvent.change(search, { target: { value: "zzz" } });
+    expect(personNames()).toEqual([]);
+    expect(screen.getByText("No people match that name")).toBeVisible();
+    expect(search).toHaveValue("zzz");
+
+    fireEvent.change(search, { target: { value: "" } });
+    expect(personNames()).toEqual(["Ben Costa", "Maria Costa", "Alex Turner"]);
+    expect(
+      screen.queryByText("No people match that name"),
+    ).not.toBeInTheDocument();
   });
 
   it("exposes a resize control for each resizable column", () => {

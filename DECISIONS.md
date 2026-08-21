@@ -144,11 +144,53 @@
 
 **Trade-off:** Month changes navigate and re-render the server result. Interactive table behaviour stays in a small Client Component around TanStack Table.
 
-## TanStack Table is headless and core-only
+## TanStack Table is headless with column resize, person sorting, and name search
 
-**Why:** Typed column definitions and semantic table markup, without sorting, filtering, pagination, or row selection.
+**Why:** Typed column definitions and semantic table markup. Pagination and row selection stay off. Person is the only sortable column. The comparator is first name, then last name, matching how the cell is read and `getMonthlyCapacity`. A search box filters the same full name, so producers can find someone without changing sort.
 
-**Trade-off:** Column sizing and resizing are registered. Person, Site, and Status are fixed width; Projects and Capacity can be resized.
+**Trade-off:** Column sizing and resizing are registered. Person, Site, and Status are fixed width; Projects and Capacity can be resized. Sort and search state are client-only and reset when the month changes. The first sort click reverses the server A–Z order. Name search is a substring of `firstName lastName`, not a TanStack filter feature. No match keeps the table chrome and says no people match.
+
+## Person detail keeps the selected month in the URL
+
+**Why:** The board is the overview; `/people/[id]?month=YYYY-MM` is a deeper view of the same month. Back links and month controls keep `month` so producers do not lose their place.
+
+**Trade-off:** An absent or invalid month still defaults to the current UTC month, the same as the board.
+
+## Person detail explains effective capacity without a second formula
+
+**Why:** `getPersonDetail` reuses `buildMonthlyPersonCapacity` and `mergeUnavailableWeekdays`. Leave and holiday weekday counts are shown separately; overlapping weekdays still count once toward effective capacity.
+
+**Trade-off:** The board still only shows the union `unavailableWeekdays`. The split exists for the person page.
+
+## UI allocation edits are not an override layer
+
+**Why:** Producers can change an existing assignment percentage. The latest successful Projects import remains the canonical snapshot and can overwrite that value. 0% keeps the assignment; removing someone from a project is a separate future action. Over-allocation is allowed and shows as over capacity. The edit dialog previews monthly status with the same capacity status badge as the board.
+
+**Trade-off:** There is still no local-beats-import layer. The person page does not repeat the import-overwrite warning beside every Edit control.
+
+## Ended projects cannot be edited from the selected month
+
+**Why:** On person detail, Edit is disabled when the project `endDate` is before the first day of the selected month. `updateAssignmentAllocation` enforces the same rule with the submitted `month`, so a hand-posted form cannot change allocation on work that has already finished relative to that month.
+
+**Trade-off:** Mid-month endings stay editable while the selected month overlaps the project. Posting a different earlier `month` is equivalent to navigating to that month in the UI.
+
+## Person time off is a monthly HTML timeline, not a Gantt
+
+**Why:** The person page needs a glanceable view of leave and applicable public holidays in the selected month. A small HTML/CSS scale (leave bar, holiday marker, date list) is enough. Projects stay in the allocations list, not on this timeline. The list uses the same leave swatch as the legend, phrases ranges as `from` / `on` with a day count, and keeps holiday names as calendar markers.
+
+**Trade-off:** There is no yearly Gantt and no third-party timeline library. Leave that crosses a month boundary is clipped to the selected month. Holidays are shown as the first day of the exclusive ICS range that falls in the month. Day counts are inclusive calendar days of the clipped range, not weekday-only capacity days.
+
+## Person leave labels drop the ICS name suffix
+
+**Why:** Calendar summaries often look like `Annual Leave - Wei Chen`. On that person's page the name is already in the header, so `leaveLabelFromSummary` removes a trailing ` - {firstName} {lastName}` when it matches. Holiday summaries stay unchanged.
+
+**Trade-off:** A leave title that ends with a different person's name is left as stored. Matching is case-insensitive on the suffix only.
+
+## Allocation preview uses shared pure math, not the query module
+
+**Why:** The editor previews status with `previewMonthlyAllocation` in `capacity-math.ts`. That file is the arithmetic used by `buildMonthlyPersonCapacity`. The dialog does not import `getPersonDetail` or other server-only query code.
+
+**Trade-off:** Preview assumes the draft integer parses; invalid input is not previewed.
 
 ## First-run empty is not an empty month
 

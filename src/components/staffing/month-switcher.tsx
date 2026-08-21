@@ -9,7 +9,13 @@ import {
   staffingMonthHref,
 } from "@/server/capacity/month";
 
-export function MonthSwitcher({ month }: { month: string }) {
+export function MonthSwitcher({
+  month,
+  hrefForMonth = staffingMonthHref,
+}: {
+  month: string;
+  hrefForMonth?: (month: string) => string;
+}) {
   const label = formatMonthLabel(month);
   const previousMonth = shiftYearMonth(month, -1);
   const nextMonth = shiftYearMonth(month, 1);
@@ -20,7 +26,7 @@ export function MonthSwitcher({ month }: { month: string }) {
       className="text-foreground flex items-center gap-3"
     >
       <Link
-        href={staffingMonthHref(previousMonth)}
+        href={hrefForMonth(previousMonth)}
         aria-label="Previous month"
         className={cn(buttonVariants({ variant: "outline", size: "icon-lg" }))}
       >
@@ -33,7 +39,7 @@ export function MonthSwitcher({ month }: { month: string }) {
         {label}
       </p>
       <Link
-        href={staffingMonthHref(nextMonth)}
+        href={hrefForMonth(nextMonth)}
         aria-label="Next month"
         className={cn(buttonVariants({ variant: "outline", size: "icon-lg" }))}
       >

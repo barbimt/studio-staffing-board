@@ -85,3 +85,39 @@ export function formatMonthLabel(month: string): string {
 export function staffingMonthHref(month: string): string {
   return `/?month=${month}`;
 }
+
+export function personDetailHref(personId: number, month: string): string {
+  return `/people/${personId}?month=${month}`;
+}
+
+export function calendarYearBounds(year: number): {
+  yearStart: string;
+  yearEnd: string;
+} {
+  return {
+    yearStart: `${year}-01-01`,
+    yearEnd: `${year}-12-31`,
+  };
+}
+
+export function parsePersonId(raw: string): number | null {
+  if (!/^\d+$/.test(raw)) {
+    return null;
+  }
+
+  const id = Number(raw);
+
+  if (!Number.isSafeInteger(id) || id < 1) {
+    return null;
+  }
+
+  return id;
+}
+
+/** True when the project finished before the first day of `month` (YYYY-MM). */
+export function projectEndedBeforeMonth(
+  projectEndDate: string,
+  month: string,
+): boolean {
+  return projectEndDate < parseYearMonth(month).monthStart;
+}

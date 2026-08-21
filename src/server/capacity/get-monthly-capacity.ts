@@ -28,6 +28,7 @@ import {
 } from "./calculate-capacity";
 import { LEAVE_CATEGORY, regionForSite } from "./holiday-regions";
 import { parseYearMonth } from "./month";
+import { mergeUnavailableWeekdays } from "./unavailable-weekdays";
 import { weekdaysInExclusiveRange, workingDaysInMonth } from "./working-days";
 
 export async function getMonthlyCapacity(
@@ -55,7 +56,7 @@ export async function getMonthlyCapacity(
         or(isNull(people.endDate), gte(people.endDate, monthStart)),
       ),
     )
-    .orderBy(asc(people.lastName), asc(people.firstName));
+    .orderBy(asc(people.firstName), asc(people.lastName));
 
   if (activePeople.length === 0) {
     return [];
@@ -154,22 +155,18 @@ export async function getMonthlyCapacity(
   }
 
   return activePeople.map((person) => {
-    const unavailable = new Set(leaveByPersonId.get(person.id) ?? []);
     const region = regionForSite(person.site);
-    const regionalHolidays = region ? holidaysByRegion.get(region) : undefined;
-
-    if (regionalHolidays) {
-      for (const day of regionalHolidays) {
-        unavailable.add(day);
-      }
-    }
+    const { unavailableWeekdays } = mergeUnavailableWeekdays(
+      leaveByPersonId.get(person.id) ?? [],
+      region ? (holidaysByRegion.get(region) ?? []) : [],
+    );
 
     return buildMonthlyPersonCapacity(
       person,
       projectsByPersonId.get(person.id) ?? [],
       {
         workingDayCount: workingDays.length,
-        unavailableWeekdays: unavailable.size,
+        unavailableWeekdays,
       },
     );
   });
