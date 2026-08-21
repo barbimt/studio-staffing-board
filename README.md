@@ -2,6 +2,12 @@
 
 Internal monthly view of people, project allocations, and available capacity.
 
+## 🎥 Demo
+
+Short walkthrough of the board: search people, sort the list, open a person detail, edit an allocation, and return to the main page.
+
+<!-- Add your demo video below (GitHub supports dragging a .mp4 into this file, or paste a link) -->
+
 ## 🚀 Run locally
 
 You need Node.js 22.22.2 or newer, pnpm, Docker Compose, and Git.
