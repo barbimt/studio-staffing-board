@@ -1,4 +1,4 @@
-# 🎬 Studio Staffing Board 0.1.1
+# 🎬 Studio Staffing Board 0.1.2
 
 ## 👋 What’s new?
 
