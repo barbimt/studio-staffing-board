@@ -1,14 +1,14 @@
 # Studio Staffing Board
 
-Internal tool for seeing who has capacity across projects and months.
-
-The home page is the monthly staffing board. Open http://localhost:3000 or a specific month such as http://localhost:3000/?month=2026-09.
+Internal monthly view of people, project allocations, and available capacity.
 
 ## Run locally
 
-Needs Node 22.22+, pnpm, and Docker.
+Requires Node.js 22.22.2 or newer, pnpm, Docker Compose, and Git.
 
 ```bash
+git clone git@github.com:barbimt/studio-staffing-board.git
+cd studio-staffing-board
 pnpm install
 cp .env.example .env
 docker compose up -d
@@ -16,50 +16,68 @@ pnpm db:migrate
 pnpm dev
 ```
 
-http://localhost:3000
+If the `pnpm` command is not available, enable it with Corepack and retry:
 
-When the board has no people yet, choose **Import data** and select the three studio files:
+```bash
+corepack enable
+pnpm install
+```
+
+Open http://localhost:3000.
+
+## Import data
+
+Choose **Import data** and select:
 
 - People CSV
 - Projects CSV
 - Leave calendar ICS
 
-Imported data is stored in PostgreSQL. Refreshing the page keeps the board; you do not import again unless the source files have changed.
-
-Capacity starts from contractual FTE (`fte × 100`). Effective capacity then subtracts weekday personal leave and public holidays for the person’s site (Bristol uses UK holidays, Porto uses Portugal holidays). Allocation percentages are unchanged.
+All three files are imported together into PostgreSQL. A successful reimport
+replaces the current snapshot without creating duplicates. If validation fails,
+the existing data is left unchanged.
 
 ## Database
 
-PostgreSQL runs in Docker. After the database is up, apply migrations with `pnpm db:migrate`.
+The schema is built from the SQL migrations in `drizzle/`. After changing
+`src/server/db/schema.ts`, generate, review, and apply a new migration:
 
-To empty staffing data (people, projects, assignments, calendar) without dropping the database or migrations:
+```bash
+pnpm db:generate
+pnpm db:migrate
+```
+
+To empty imported staffing data without removing the schema:
 
 ```bash
 pnpm db:reset
 ```
-
-That uses `DATABASE_URL` from `.env`. The board shows the first-run empty state until you import again.
-
-After schema changes, generate a new SQL migration with `pnpm db:generate`, inspect it, then migrate again.
-
-## Import again
-
-Use **Import data** on a populated board to replace the current snapshot. The three files are a complete export: people are upserted by Employee ID, projects by name, and calendar events by UID. Records missing from the latest files are removed, including assignments of removed people or projects and occurrences of removed events. Assignments on remaining projects and occurrences of remaining events match the latest files. The latest successful import wins. There is no separate override history.
 
 ## Checks
 
 ```bash
 pnpm lint
 pnpm typecheck
-pnpm test:run
 pnpm format:check
+pnpm test:run
 pnpm build
 ```
 
-GitHub Actions runs the same checks on pull requests and on `main`. Snapshot reconciliation tests need PostgreSQL; CI starts Postgres 17 and sets `TEST_DATABASE_URL`. Locally:
+## Notes
 
-```bash
-TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/studio_capacity_test
-```
+- Drizzle was the only part of the stack I had not used before this project.
+- Cloud Run deployment and Google Workspace authentication are outside scope.
+- Do not commit `.env` files or credentials. `.env.example` contains only safe
+  local example values.
+- Implementation choices are recorded in [DECISIONS.md](./DECISIONS.md).
+- The studio-facing announcement is in
+  [RELEASE-NOTE.md](./RELEASE-NOTE.md).
 
-Use a dedicated database so `pnpm test:run` does not truncate your development data. Apply migrations to that database with `DATABASE_URL` set to the same URL, then `pnpm db:migrate`.
+## Approximate running cost
+
+For a small internal deployment, Cloud Run may stay within its free tier.
+Cloud SQL would likely be the main expense. A rough starting budget is
+**USD 15–50 per month**, depending on region, database size, backups, and
+availability. Verify the chosen configuration with the
+[Google Cloud pricing calculator](https://cloud.google.com/products/calculator)
+before deployment.
